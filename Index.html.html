@@ -1,0 +1,2741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Phone Zone" />
+  <title>Phone Zone - Multi-Shop Attendance & Payroll App</title>
+  <link id="pwa-manifest" rel="manifest" />
+  <link id="apple-touch-icon" rel="apple-touch-icon" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      overscroll-behavior-y: contain;
+    }
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom, 12px);
+    }
+    @keyframes pulseSoft {
+      0%, 100% { transform: scale(1); opacity: 0.75; }
+      50% { transform: scale(1.18); opacity: 0; }
+    }
+    .pulse-ring {
+      animation: pulseSoft 2s infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-200/80 text-slate-900 font-sans min-h-screen flex justify-center antialiased selection:bg-indigo-100 selection:text-indigo-900">
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm px-4 pointer-events-none"></div>
+
+  <!-- Custom Confirm Modal -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 border border-slate-200">
+      <div class="w-11 h-11 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3">
+        <i data-lucide="shield-alert" class="w-6 h-6"></i>
+      </div>
+      <h3 id="confirm-title" class="text-lg font-extrabold text-slate-900">Confirm Action</h3>
+      <p id="confirm-message" class="text-sm text-slate-600 mt-1.5 mb-6 leading-relaxed"></p>
+      <div class="flex gap-3">
+        <button id="confirm-cancel" class="flex-1 py-3 rounded-2xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">Cancel</button>
+        <button id="confirm-ok" class="flex-1 py-3 rounded-2xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white transition">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Selfie Preview Lightbox Modal -->
+  <div id="photo-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-xs p-4" onclick="closePhotoModal()">
+    <div class="bg-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-200" onclick="event.stopPropagation()">
+      <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h4 id="photo-modal-title" class="text-sm font-extrabold text-slate-900">Verification Selfie</h4>
+          <p id="photo-modal-sub" class="text-xs text-slate-500"></p>
+        </div>
+        <button onclick="closePhotoModal()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="bg-slate-950 flex items-center justify-center p-2">
+        <img id="photo-modal-img" src="" alt="Punch Selfie" class="w-full max-h-80 object-contain rounded-xl" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Mobile App Shell Container -->
+  <div id="app-shell" class="w-full max-w-md bg-slate-50 min-h-screen shadow-2xl flex flex-col relative transition-all duration-300 border-x border-slate-200/80">
+
+    <!-- Top App Bar -->
+    <header class="bg-slate-900 text-white px-4 pt-3.5 pb-3 sticky top-0 z-30 shadow-md">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center shadow-inner shrink-0">
+            <i data-lucide="smartphone" class="w-5 h-5 text-white"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-base font-extrabold tracking-tight truncate">Phone Zone</h1>
+              <span id="cloud-status-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 shrink-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Local Demo
+              </span>
+            </div>
+            <p id="header-subtitle" class="text-[11px] text-slate-400 truncate">Multi-Shop Attendance & Payroll</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="btn-expand-width" onclick="toggleDesktopWidth()" class="hidden md:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition" title="Toggle Wide Desktop View">
+            <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+          </button>
+          <button id="btn-logout" onclick="handleLogout()" class="hidden items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/30 text-xs font-bold transition">
+            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+            <span>Exit</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- PWA Install Guide Banner -->
+    <div id="pwa-install-banner" class="bg-indigo-600 text-white px-4 py-2.5 text-xs flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <i data-lucide="download-cloud" class="w-4 h-4 shrink-0 text-indigo-200"></i>
+        <p class="leading-snug">
+          <span class="font-bold">Install App:</span> Host on Netlify/Vercel, then tap browser menu &rarr; <span class="underline font-semibold">Add to Home Screen</span>.
+        </p>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="btn-native-install" onclick="triggerNativePWAInstall()" class="hidden px-2.5 py-1 rounded-lg bg-white text-indigo-700 font-extrabold text-[11px]">Install</button>
+        <button onclick="dismissInstallBanner()" class="p-1 text-indigo-200 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         SCREEN 1: ROLE-BASED LOGIN (STAFF SINGLE-PHONE LOCK & OWNER PIN)
+    ==================================================================== -->
+    <main id="screen-login" class="flex-1 p-5 flex flex-col justify-between">
+      <div class="space-y-5 my-auto py-4">
+        <div class="text-center space-y-1.5">
+          <div class="w-16 h-16 rounded-3xl bg-slate-900 text-indigo-400 flex items-center justify-center mx-auto shadow-lg">
+            <i data-lucide="fingerprint" class="w-8 h-8"></i>
+          </div>
+          <h2 class="text-xl font-extrabold text-slate-900">Outlet Check-In Portal</h2>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto">Auto-detects any Phone Zone branch, supports multi-shop shifts, live selfie & advance ledger.</p>
+        </div>
+
+        <!-- Login Role Switcher -->
+        <div class="grid grid-cols-2 p-1 rounded-2xl bg-slate-200/80 border border-slate-200">
+          <button id="login-tab-staff" onclick="switchLoginTab('staff')" class="py-2.5 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-xs transition">
+            Staff Login
+          </button>
+          <button id="login-tab-owner" onclick="switchLoginTab('owner')" class="py-2.5 rounded-xl text-xs font-extrabold text-slate-600 hover:text-slate-900 transition">
+            Owner Login
+          </button>
+        </div>
+
+        <!-- Staff Login Form -->
+        <form id="form-staff-login" onsubmit="submitStaffLogin(event)" class="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-4">
+          <div class="flex items-center justify-between text-[11px] bg-slate-50 px-3 py-2 rounded-xl border border-slate-200/80">
+            <span class="text-slate-500 font-semibold flex items-center gap-1.5">
+              <i data-lucide="smartphone" class="w-3.5 h-3.5 text-indigo-600"></i> This Phone ID:
+            </span>
+            <span id="display-device-id" class="font-mono font-bold text-slate-800">DEV-XXXX</span>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Staff ID</label>
+            <input type="text" id="login-staff-id" required placeholder="e.g. EMP-101" class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm font-bold uppercase tracking-wider focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">4-Digit Security PIN</label>
+            <input type="password" inputmode="numeric" maxlength="4" id="login-staff-pin" required placeholder="••••" class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-base font-extrabold tracking-[0.4em] focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none" />
+          </div>
+
+          <div id="device-lock-alert" class="hidden rounded-2xl bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-800 space-y-1">
+            <div class="font-extrabold flex items-center gap-1.5 text-rose-700">
+              <i data-lucide="lock" class="w-4 h-4"></i> Single-Phone Security Lock
+            </div>
+            <p id="device-lock-alert-msg" class="leading-relaxed"></p>
+          </div>
+
+          <button type="submit" class="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-extrabold text-sm shadow-md shadow-indigo-200 transition flex items-center justify-center gap-2">
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+            <span>Verify Phone & Login</span>
+          </button>
+
+          <!-- Quick Demo Autofill Pills -->
+          <div class="pt-2 border-t border-slate-100">
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tap to Autofill Demo Staff:</p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button type="button" onclick="fillDemoStaff('EMP-101', '1111')" class="p-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-left transition">
+                <div class="text-[11px] font-extrabold text-slate-800">EMP-101</div>
+                <div class="text-[10px] text-slate-500 truncate">Rahul (1111)</div>
+              </button>
+              <button type="button" onclick="fillDemoStaff('EMP-102', '2222')" class="p-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-left transition">
+                <div class="text-[11px] font-extrabold text-slate-800">EMP-102</div>
+                <div class="text-[10px] text-slate-500 truncate">Sneha (2222)</div>
+              </button>
+              <button type="button" onclick="fillDemoStaff('EMP-103', '3333')" class="p-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-left transition">
+                <div class="text-[11px] font-extrabold text-slate-800">EMP-103</div>
+                <div class="text-[10px] text-slate-500 truncate">Amit (3333)</div>
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Owner Login Form -->
+        <form id="form-owner-login" onsubmit="submitOwnerLogin(event)" class="hidden bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-4">
+          <div class="rounded-2xl bg-slate-900 text-white p-3.5 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+              <i data-lucide="crown" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-xs font-extrabold">Store Owner Admin Access</div>
+              <div class="text-[11px] text-slate-400">Manage all branches, advance ledger, device locks & cloud sync.</div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Master Owner PIN</label>
+            <input type="password" inputmode="numeric" maxlength="6" id="login-owner-pin" required placeholder="••••" class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-base font-extrabold tracking-[0.4em] focus:border-slate-900 focus:ring-2 focus:ring-slate-200 outline-none" />
+            <p class="text-[11px] text-slate-500 mt-1.5">Default Master PIN: <span class="font-bold text-slate-800">1234</span> (Editable inside Owner Settings)</p>
+          </div>
+
+          <button type="submit" class="w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-extrabold text-sm shadow-md transition flex items-center justify-center gap-2">
+            <i data-lucide="key-round" class="w-4 h-4"></i>
+            <span>Unlock Owner Dashboard</span>
+          </button>
+        </form>
+      </div>
+
+      <p class="text-center text-[11px] text-slate-400 pb-2">
+        Phone Zone Retail Security &bull; All-Branch Roaming Enabled
+      </p>
+    </main>
+
+    <!-- ===================================================================
+         SCREEN 2: PRIVATE STAFF PORTAL (MULTI-SHOP ROAMING + ADVANCE LEDGER)
+    ==================================================================== -->
+    <div id="screen-staff" class="hidden flex-1 flex flex-col pb-20">
+
+      <!-- Staff Sub-View 1: MULTI-SHOP PUNCH IN / PUNCH OUT -->
+      <section id="staff-view-punch" class="p-4 space-y-4">
+        <!-- Staff Identity & Clock Strip -->
+        <div class="bg-white rounded-3xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div id="staff-badge-initials" class="w-11 h-11 rounded-2xl bg-indigo-600 text-white font-extrabold text-sm flex items-center justify-center shrink-0">
+              RP
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5">
+                <h2 id="staff-profile-name" class="text-sm font-extrabold text-slate-900 truncate">Rahul Patel</h2>
+                <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold shrink-0">All Shops</span>
+              </div>
+              <p id="staff-profile-branch" class="text-xs text-slate-500 truncate">Home: Phone Zone - Gota</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <div id="staff-live-clock" class="text-sm font-extrabold text-slate-900 tabular-nums">--:--</div>
+            <div id="staff-live-date" class="text-[10px] font-semibold text-slate-500">--</div>
+          </div>
+        </div>
+
+        <!-- Step 1: Multi-Shop Auto-Detect GPS Check -->
+        <div id="staff-gps-card" class="rounded-3xl border-2 border-slate-200 bg-white p-4 space-y-3 transition-all">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-start gap-3">
+              <div id="staff-gps-icon-box" class="relative w-10 h-10 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
+                <span id="staff-gps-pulse" class="hidden absolute inset-0 rounded-2xl bg-emerald-400 pulse-ring"></span>
+                <i data-lucide="map-pin" class="w-5 h-5 relative z-10"></i>
+              </div>
+              <div>
+                <span id="staff-gps-status-pill" class="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-200 text-slate-700">
+                  Scanning All Shops...
+                </span>
+                <h3 id="staff-gps-title" class="text-sm font-extrabold text-slate-900 mt-1">Detecting Nearest Outlet</h3>
+                <p id="staff-gps-desc" class="text-xs text-slate-500">Allow GPS permission to check which shop you are at.</p>
+              </div>
+            </div>
+            <button onclick="refreshStaffGPS()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 shrink-0" title="Refresh GPS">
+              <i id="staff-gps-spin" data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Shop Selector / Nearest Outlet Override for Testing or Multiple Branches -->
+          <div class="bg-white/80 rounded-2xl p-2.5 border border-slate-200/80 space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <label class="text-[11px] font-bold text-slate-600 shrink-0">Target Outlet:</label>
+              <select id="staff-branch-selector" onchange="onStaffBranchSelectChange()" class="flex-1 rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs font-extrabold text-slate-800 bg-white outline-none">
+                <option value="AUTO">Auto-Detect Nearest Shop</option>
+              </select>
+            </div>
+
+            <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+              <div>
+                <span class="text-slate-400 font-semibold">Distance:</span>
+                <span id="staff-distance-val" class="font-extrabold text-slate-900 ml-1">-- m</span>
+                <span id="staff-radius-val" class="text-[11px] text-slate-400 ml-1">(Max --m)</span>
+              </div>
+
+              <!-- Simulate Inside Shop Toggle -->
+              <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" id="staff-demo-gps-toggle" onchange="toggleStaffDemoGPS()" class="sr-only peer" />
+                <div class="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:bg-indigo-600 relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:w-3.5 after:h-3.5 after:rounded-full after:transition-all peer-checked:after:translate-x-3.5"></div>
+                <span class="text-[11px] font-bold text-indigo-700">Simulate Inside</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Mandatory Live Selfie Camera -->
+        <div class="bg-white rounded-3xl border border-slate-200 p-4 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                <span>Live Counter Selfie</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700">Mandatory</span>
+              </h3>
+              <p class="text-[11px] text-slate-500">Required for every Punch In &amp; Punch Out across shops.</p>
+            </div>
+            <span id="selfie-status-tag" class="text-[11px] font-bold text-amber-600">Required</span>
+          </div>
+
+          <div class="relative aspect-4/3 w-full rounded-2xl bg-slate-900 overflow-hidden border border-slate-200 flex items-center justify-center">
+            <video id="staff-video" autoplay playsinline muted class="hidden w-full h-full object-cover scale-x-[-1]"></video>
+            <img id="staff-selfie-img" alt="Live Selfie" class="hidden w-full h-full object-cover" />
+
+            <div id="staff-cam-placeholder" class="text-center p-5 space-y-2">
+              <div class="w-12 h-12 rounded-2xl bg-slate-800 text-indigo-400 flex items-center justify-center mx-auto">
+                <i data-lucide="camera" class="w-6 h-6"></i>
+              </div>
+              <p class="text-xs font-bold text-white">Camera Ready</p>
+              <p class="text-[11px] text-slate-400">Take a live selfie at the current shop counter.</p>
+            </div>
+
+            <div id="staff-selfie-ok-badge" class="hidden absolute bottom-2.5 left-2.5 bg-emerald-600 text-white text-[11px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+              <span>Live Selfie Verified</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btn-open-cam" onclick="startStaffCamera()" class="py-2.5 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="video" class="w-4 h-4"></i>
+              <span>Open Camera</span>
+            </button>
+            <button id="btn-snap-selfie" onclick="captureStaffSelfie()" class="hidden py-2.5 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="aperture" class="w-4 h-4"></i>
+              <span>Capture Selfie</span>
+            </button>
+            <button id="btn-sim-selfie" onclick="captureSimulatedSelfie()" class="py-2.5 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="sparkles" class="w-4 h-4 text-indigo-600"></i>
+              <span>Simulated Camera</span>
+            </button>
+            <button id="btn-retake-selfie" onclick="resetStaffSelfie()" class="hidden col-span-2 py-2.5 px-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              <span>Retake Selfie</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3: Multi-Shift Status & Punch Buttons -->
+        <div class="bg-white rounded-3xl border border-slate-200 p-4 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Current Shift Status</div>
+              <div id="staff-today-shift-text" class="text-sm font-extrabold text-slate-900 truncate">Ready for Shift 1</div>
+            </div>
+            <span id="staff-today-pill" class="px-2.5 py-1 rounded-xl text-xs font-extrabold bg-slate-100 text-slate-600 shrink-0">Off Duty</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 pt-1">
+            <button id="btn-staff-punch-in" onclick="executeStaffPunch('IN')" disabled class="py-4 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs sm:text-sm flex flex-col items-center justify-center gap-1 shadow-sm transition">
+              <i data-lucide="log-in" class="w-5 h-5"></i>
+              <span>PUNCH IN</span>
+            </button>
+            <button id="btn-staff-punch-out" onclick="executeStaffPunch('OUT')" disabled class="py-4 px-3 rounded-2xl bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs sm:text-sm flex flex-col items-center justify-center gap-1 shadow-sm transition">
+              <i data-lucide="log-out" class="w-5 h-5"></i>
+              <span>PUNCH OUT</span>
+            </button>
+          </div>
+          <p id="punch-requirement-hint" class="text-[11px] text-center text-slate-500">
+            Verify <span class="font-bold text-slate-700">Inside Shop GPS</span> &amp; <span class="font-bold text-slate-700">Live Selfie</span> to punch.
+          </p>
+
+          <!-- Today's Multi-Shop Shift Timeline -->
+          <div id="staff-today-shifts-box" class="hidden pt-3 border-t border-slate-100 space-y-2">
+            <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Today's Shop Visits &amp; Shifts</div>
+            <div id="staff-today-shifts-list" class="space-y-1.5"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Staff Sub-View 2: MY ATTENDANCE (PERSONAL ONLY) -->
+      <section id="staff-view-attendance" class="hidden p-4 space-y-4">
+        <div class="flex items-center justify-between bg-white p-4 rounded-3xl border border-slate-200">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">My Attendance</h2>
+            <p class="text-xs text-slate-500">All shop shifts &amp; daily hours</p>
+          </div>
+          <input type="month" id="staff-att-month" onchange="renderStaffAttendanceView()" class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold text-slate-800 bg-slate-50 outline-none" />
+        </div>
+
+        <!-- 4 Monthly Summary Cards -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200">
+            <div class="text-[11px] font-bold text-slate-400 uppercase">Full Days</div>
+            <div id="my-stat-present" class="text-2xl font-extrabold text-emerald-600 mt-0.5">0</div>
+            <div class="text-[11px] text-slate-500">Days worked (&ge;5h)</div>
+          </div>
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200">
+            <div class="text-[11px] font-bold text-slate-400 uppercase">Half Days</div>
+            <div id="my-stat-half" class="text-2xl font-extrabold text-indigo-600 mt-0.5">0</div>
+            <div class="text-[11px] text-slate-500">&lt; 5 hrs total/day</div>
+          </div>
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200">
+            <div class="text-[11px] font-bold text-slate-400 uppercase">Late Marks</div>
+            <div id="my-stat-late" class="text-2xl font-extrabold text-amber-600 mt-0.5">0</div>
+            <div class="text-[11px] text-slate-500">First punch after grace</div>
+          </div>
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200">
+            <div class="text-[11px] font-bold text-slate-400 uppercase">Total Hours</div>
+            <div id="my-stat-hours" class="text-2xl font-extrabold text-slate-900 mt-0.5">0h</div>
+            <div class="text-[11px] text-slate-500">Across all shops</div>
+          </div>
+        </div>
+
+        <!-- Personal Shift Log List -->
+        <div class="space-y-2.5">
+          <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">All Shop Shift Logs</h3>
+          <div id="staff-personal-logs-list" class="space-y-2.5"></div>
+        </div>
+      </section>
+
+      <!-- Staff Sub-View 3: MY SALARY & ITEMIZED ADVANCE (+ / -) LEDGER -->
+      <section id="staff-view-salary" class="hidden p-4 space-y-4">
+        <div class="flex items-center justify-between bg-white p-4 rounded-3xl border border-slate-200">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">My Salary &amp; Ledger</h2>
+            <p class="text-xs text-slate-500">Earned pay, advances (-) &amp; bonus (+)</p>
+          </div>
+          <input type="month" id="staff-sal-month" onchange="renderStaffSalaryView()" class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold text-slate-800 bg-slate-50 outline-none" />
+        </div>
+
+        <div id="staff-salary-card" class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
+          <!-- Populated via JS -->
+        </div>
+
+        <!-- Itemized Advance / Bonus Entries Visible to Staff -->
+        <div class="bg-white rounded-3xl border border-slate-200 p-4 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-extrabold text-slate-900">Advance &amp; Bonus History</h3>
+              <p class="text-[11px] text-slate-500">Every advance (-) and bonus (+) entry this month</p>
+            </div>
+            <span id="staff-ledger-count-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700">0 Entries</span>
+          </div>
+          <div id="staff-ledger-entries-list" class="space-y-2">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Staff Fixed Bottom Navigation Bar -->
+      <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-200 px-3 py-2 safe-bottom z-30 grid grid-cols-3 gap-1 shadow-lg">
+        <button onclick="switchStaffTab('punch')" id="snav-punch" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-indigo-600 bg-indigo-50/80 font-extrabold text-[11px] transition">
+          <i data-lucide="fingerprint" class="w-5 h-5 mb-0.5"></i>
+          <span>Punch</span>
+        </button>
+        <button onclick="switchStaffTab('attendance')" id="snav-attendance" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-500 hover:text-slate-900 font-bold text-[11px] transition">
+          <i data-lucide="calendar-check" class="w-5 h-5 mb-0.5"></i>
+          <span>My Attendance</span>
+        </button>
+        <button onclick="switchStaffTab('salary')" id="snav-salary" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-500 hover:text-slate-900 font-bold text-[11px] transition">
+          <i data-lucide="indian-rupee" class="w-5 h-5 mb-0.5"></i>
+          <span>My Salary</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================================================================
+         SCREEN 3: OWNER ADMIN PORTAL (MULTI-SHOP LOGS + ADVANCE LEDGER)
+    ==================================================================== -->
+    <div id="screen-owner" class="hidden flex-1 flex flex-col pb-20">
+
+      <!-- Owner Sub-View 1: LIVE MULTI-SHOP LOGS -->
+      <section id="owner-view-logs" class="p-4 space-y-4">
+        <!-- Quick Today KPI Strip -->
+        <div class="grid grid-cols-3 gap-2.5">
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 text-center">
+            <div class="text-[10px] font-bold uppercase text-slate-400">Total Staff</div>
+            <div id="own-kpi-total" class="text-xl font-extrabold text-slate-900">0</div>
+          </div>
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 text-center">
+            <div class="text-[10px] font-bold uppercase text-emerald-600">Present Today</div>
+            <div id="own-kpi-present" class="text-xl font-extrabold text-emerald-600">0</div>
+          </div>
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 text-center">
+            <div class="text-[10px] font-bold uppercase text-amber-600">Shifts Today</div>
+            <div id="own-kpi-shifts" class="text-xl font-extrabold text-indigo-600">0</div>
+          </div>
+        </div>
+
+        <!-- Filters & CSV Export -->
+        <div class="bg-white p-3.5 rounded-3xl border border-slate-200 space-y-2.5">
+          <div class="grid grid-cols-2 gap-2">
+            <input type="date" id="own-filter-date" onchange="renderOwnerLogs()" class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+            <select id="own-filter-branch" onchange="renderOwnerLogs()" class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 bg-white outline-none">
+              <option value="ALL">All Outlets</option>
+            </select>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <button onclick="resetOwnerLogFilters()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-600">
+              Show All Dates
+            </button>
+            <button onclick="exportOwnerLogsCSV()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-2xs">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Attendance Cards -->
+        <div id="owner-logs-container" class="space-y-2.5"></div>
+      </section>
+
+      <!-- Owner Sub-View 2: SALARY & ITEMIZED ADVANCE (+ / -) LEDGER -->
+      <section id="owner-view-payroll" class="hidden p-4 space-y-4">
+        <div class="bg-white p-4 rounded-3xl border border-slate-200 flex items-center justify-between gap-2">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">Salary &amp; Advance Ledger</h2>
+            <p class="text-xs text-slate-500">Add multiple advances (-) or bonuses (+)</p>
+          </div>
+          <input type="month" id="own-payroll-month" onchange="renderOwnerPayroll()" class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold text-slate-800 bg-slate-50 outline-none" />
+        </div>
+
+        <!-- Quick Add Advance / Bonus / Carry-Forward Entry Form -->
+        <form onsubmit="submitLedgerEntry(event)" class="bg-white p-4 rounded-3xl border border-slate-200 shadow-2xs space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+              <i data-lucide="plus-circle" class="w-4 h-4 text-indigo-600"></i>
+              <span>Record Advance (-) or Bonus (+)</span>
+            </h3>
+            <span class="text-[10px] font-bold text-slate-400">Visible to Staff</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Select Staff</label>
+              <select id="ledger-staff-select" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold bg-white outline-none focus:border-indigo-600"></select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Entry Type (+ or -)</label>
+              <select id="ledger-type-select" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold bg-white outline-none focus:border-indigo-600">
+                <option value="ADVANCE">Advance / Deduction (-)</option>
+                <option value="BONUS">Bonus / Incentive (+)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Amount (₹)</label>
+              <input type="number" id="ledger-amount-input" min="1" step="1" required placeholder="e.g. 2000" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold outline-none focus:border-indigo-600" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Date</label>
+              <input type="date" id="ledger-date-input" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold outline-none focus:border-indigo-600" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Note / Reason</label>
+            <input type="text" id="ledger-note-input" required placeholder="e.g. Cash Upad, Festival Advance, Sales Bonus..." class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold outline-none focus:border-indigo-600" />
+          </div>
+
+          <button type="submit" class="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold transition shadow-xs">
+            Save Entry to Staff Ledger
+          </button>
+        </form>
+
+        <div id="owner-payroll-list" class="space-y-3"></div>
+      </section>
+
+      <!-- Owner Sub-View 3: STAFF & SINGLE-PHONE DEVICE LOCK -->
+      <section id="owner-view-staff" class="hidden p-4 space-y-4">
+        <form id="owner-staff-form" onsubmit="saveStaffProfile(event)" class="bg-white p-4 rounded-3xl border border-slate-200 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <h3 id="own-staff-form-title" class="text-sm font-extrabold text-slate-900">Add New Staff Member</h3>
+            <button type="button" id="own-staff-cancel" onclick="resetOwnerStaffForm()" class="hidden text-xs font-bold text-slate-500">Cancel</button>
+          </div>
+          <input type="hidden" id="own-staff-edit-mode" value="" />
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Staff ID</label>
+              <input type="text" id="own-staff-id" required placeholder="EMP-104" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold uppercase outline-none focus:border-indigo-600" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">4-Digit PIN</label>
+              <input type="text" inputmode="numeric" maxlength="4" id="own-staff-pin" required placeholder="4444" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold outline-none focus:border-indigo-600" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Full Name</label>
+            <input type="text" id="own-staff-name" required placeholder="e.g. Karan Mehta" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold outline-none focus:border-indigo-600" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Primary / Home Outlet</label>
+              <select id="own-staff-branch" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold bg-white outline-none focus:border-indigo-600"></select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Monthly Salary (₹)</label>
+              <input type="number" min="1000" step="100" id="own-staff-salary" required placeholder="18000" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold outline-none focus:border-indigo-600" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Shift Start Time (15m grace allowed)</label>
+            <input type="time" id="own-staff-shift" required value="10:00" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold outline-none focus:border-indigo-600" />
+          </div>
+
+          <p class="text-[11px] text-indigo-700 bg-indigo-50 px-3 py-2 rounded-xl font-medium">
+            Note: All registered staff can punch in &amp; out at <strong>any</strong> Phone Zone outlet automatically.
+          </p>
+
+          <button type="submit" class="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold transition">
+            Save Staff Account
+          </button>
+        </form>
+
+        <div class="space-y-2.5">
+          <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">Registered Staff &amp; Phone Locks</h3>
+          <div id="owner-staff-list" class="space-y-2.5"></div>
+        </div>
+      </section>
+
+      <!-- Owner Sub-View 4: BRANCHES GPS & FIREBASE CLOUD SYNC -->
+      <section id="owner-view-cloud" class="hidden p-4 space-y-5">
+
+        <!-- Firebase Cloud Sync Panel -->
+        <div class="bg-white p-4 rounded-3xl border border-slate-200 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <i data-lucide="cloud" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-extrabold text-slate-900">Firebase Cloud Sync</h3>
+                <p class="text-[11px] text-slate-500">Real-time sync across all staff phones</p>
+              </div>
+            </div>
+            <span id="cloud-panel-badge" class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">Local Mode</span>
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Paste your <code class="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-[11px]">firebaseConfig</code> object from Firebase Console &rarr; Project Settings &rarr; Web App to sync multi-shop punches and advance entries live.
+          </p>
+
+          <textarea id="firebase-config-input" rows="5" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "your-app.firebaseapp.com",
+  "projectId": "your-app",
+  "storageBucket": "your-app.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123456789:web:abcdef"
+}' class="w-full rounded-2xl border border-slate-300 p-3 text-xs font-mono bg-slate-50 focus:border-indigo-600 outline-none"></textarea>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="saveAndConnectFirebase()" class="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
+              <i data-lucide="plug-zap" class="w-4 h-4"></i>
+              <span>Save &amp; Connect Cloud</span>
+            </button>
+            <button onclick="disconnectFirebase()" class="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">
+              Use Local Demo
+            </button>
+          </div>
+        </div>
+
+        <!-- Shop Branch GPS Geo-Fence Editor + Add New Shop -->
+        <div class="bg-white p-4 rounded-3xl border border-slate-200 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-slate-900">Outlet GPS Geo-Fence Setup</h3>
+            <button type="button" onclick="prepareNewBranch()" class="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 text-[11px] font-extrabold">+ Add New Shop</button>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Select Outlet Branch</label>
+            <select id="own-branch-select" onchange="loadBranchIntoEditor()" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-xs font-extrabold bg-white outline-none"></select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Outlet Name</label>
+            <input type="text" id="own-branch-name" placeholder="e.g. Phone Zone - New Branch" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold outline-none" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Latitude</label>
+              <input type="number" step="any" id="own-branch-lat" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono outline-none" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Longitude</label>
+              <input type="number" step="any" id="own-branch-lng" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono outline-none" />
+            </div>
+          </div>
+
+          <button type="button" onclick="captureCurrentGPSForBranch()" class="w-full py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-extrabold flex items-center justify-center gap-1.5">
+            <i data-lucide="crosshair" class="w-4 h-4"></i>
+            <span>Capture My Current Shop GPS</span>
+          </button>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Allowed Geo-Fence Radius (Meters)</label>
+            <input type="number" min="15" max="1000" id="own-branch-radius" value="75" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold outline-none" />
+          </div>
+
+          <button type="button" onclick="saveBranchGeoFence()" class="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold">
+            Save Outlet Location
+          </button>
+        </div>
+
+        <!-- Master Owner PIN Settings -->
+        <div class="bg-white p-4 rounded-3xl border border-slate-200 space-y-3 shadow-2xs">
+          <h3 class="text-sm font-extrabold text-slate-900">Owner Master PIN Security</h3>
+          <div class="flex gap-2">
+            <input type="text" inputmode="numeric" maxlength="6" id="own-new-master-pin" placeholder="New Master PIN" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold outline-none" />
+            <button onclick="updateOwnerMasterPIN()" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-extrabold">Update PIN</button>
+          </div>
+          <button onclick="confirmResetAllDemoData()" class="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold">
+            Reset Local Demo Data to Defaults
+          </button>
+        </div>
+      </section>
+
+      <!-- Owner Fixed Bottom Navigation Bar -->
+      <nav id="owner-bottom-nav" class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-200 px-2 py-2 safe-bottom z-30 grid grid-cols-4 gap-1 shadow-lg transition-all duration-300">
+        <button onclick="switchOwnerTab('logs')" id="onav-logs" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-indigo-600 bg-indigo-50/80 font-extrabold text-[10px] transition">
+          <i data-lucide="clipboard-list" class="w-4 h-4 mb-0.5"></i>
+          <span>Live Logs</span>
+        </button>
+        <button onclick="switchOwnerTab('payroll')" id="onav-payroll" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-500 hover:text-slate-900 font-bold text-[10px] transition">
+          <i data-lucide="wallet" class="w-4 h-4 mb-0.5"></i>
+          <span>Salary/Adv</span>
+        </button>
+        <button onclick="switchOwnerTab('staff')" id="onav-staff" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-500 hover:text-slate-900 font-bold text-[10px] transition">
+          <i data-lucide="smartphone-nfc" class="w-4 h-4 mb-0.5"></i>
+          <span>Staff &amp; Lock</span>
+        </button>
+        <button onclick="switchOwnerTab('cloud')" id="onav-cloud" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-500 hover:text-slate-900 font-bold text-[10px] transition">
+          <i data-lucide="cloud-cog" class="w-4 h-4 mb-0.5"></i>
+          <span>Shops/Sync</span>
+        </button>
+      </nav>
+    </div>
+
+  </div>
+
+  <!-- =====================================================================
+       APPLICATION SCRIPT (ES MODULE FOR FIREBASE v10.14.1 + FULL APP LOGIC)
+  ====================================================================== -->
+  <script type="module">
+    import { initializeApp, getApps, deleteApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+    import {
+      getFirestore,
+      collection,
+      doc,
+      setDoc,
+      deleteDoc,
+      onSnapshot,
+      getDocs
+    } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+    // -----------------------------------------------------------------------
+    // 1. DYNAMIC PWA MANIFEST & HOME SCREEN ICON GENERATION
+    // -----------------------------------------------------------------------
+    function setupPWAManifest() {
+      const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0f172a"/>
+        <circle cx="256" cy="256" r="170" fill="#4f46e5" opacity="0.22"/>
+        <path d="M256 116c-64 0-116 52-116 116 0 84 116 184 116 184s116-100 116-184c0-64-52-116-116-116zm0 158a42 42 0 1 1 0-84 42 42 0 0 1 0 84z" fill="#818cf8"/>
+      </svg>`;
+      const iconUrl = 'data:image/svg+xml;base64,' + btoa(svgIcon);
+      document.getElementById('apple-touch-icon').href = iconUrl;
+
+      const manifest = {
+        name: 'Phone Zone - Multi-Shop Attendance & Payroll',
+        short_name: 'Phone Zone',
+        description: 'Multi-shop geo-fenced staff attendance, selfie verification, and itemized advance/salary ledger.',
+        start_url: window.location.href,
+        display: 'standalone',
+        background_color: '#0f172a',
+        theme_color: '#0f172a',
+        icons: [
+          { src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+        ]
+      };
+
+      const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+      document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
+    }
+
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const btn = document.getElementById('btn-native-install');
+      if (btn) btn.classList.remove('hidden');
+    });
+
+    window.triggerNativePWAInstall = async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById('btn-native-install').classList.add('hidden');
+    };
+
+    window.dismissInstallBanner = () => {
+      document.getElementById('pwa-install-banner').classList.add('hidden');
+    };
+
+    // -----------------------------------------------------------------------
+    // 2. CONSTANTS, STORAGE KEYS & DEFAULT DATA
+    // -----------------------------------------------------------------------
+    const KEYS = {
+      DEVICE_ID: 'pz_pwa_device_id',
+      STAFF: 'pz_pwa_staff_v3',
+      BRANCHES: 'pz_pwa_branches_v3',
+      LOGS: 'pz_pwa_logs_v3',
+      LEDGER: 'pz_pwa_ledger_v3',
+      PAID_STATUS: 'pz_pwa_paid_status_v3',
+      OWNER_PIN: 'pz_pwa_owner_pin_v3',
+      FIREBASE_CFG: 'pz_pwa_firebase_cfg_v3',
+      SESSION: 'pz_pwa_session_v3'
+    };
+
+    const DEFAULT_BRANCHES = [
+      { id: 'br-gota', name: 'Phone Zone - Gota', lat: 23.0977, lng: 72.5491, radius: 75 },
+      { id: 'br-akbarnagar', name: 'Phone Zone NX - Akbarnagar', lat: 23.0686, lng: 72.5621, radius: 65 },
+      { id: 'br-chharodi', name: 'Phone Zone - Chharodi Road', lat: 23.1289, lng: 72.5412, radius: 100 }
+    ];
+
+    const DEFAULT_STAFF = [
+      {
+        id: 'EMP-101',
+        name: 'Rahul Patel',
+        pin: '1111',
+        branchId: 'br-gota',
+        monthlySalary: 18000,
+        shiftStart: '10:00',
+        boundDeviceId: null
+      },
+      {
+        id: 'EMP-102',
+        name: 'Sneha Shah',
+        pin: '2222',
+        branchId: 'br-akbarnagar',
+        monthlySalary: 16500,
+        shiftStart: '10:00',
+        boundDeviceId: null
+      },
+      {
+        id: 'EMP-103',
+        name: 'Amit Desai',
+        pin: '3333',
+        branchId: 'br-chharodi',
+        monthlySalary: 20000,
+        shiftStart: '10:00',
+        boundDeviceId: null
+      }
+    ];
+
+    // App State
+    let deviceId = '';
+    let branches = [];
+    let staffList = [];
+    let logs = []; // Supports multiple shift logs per day across any shop!
+    let ledgerEntries = []; // Array of { id, staffId, month, date, type: 'ADVANCE' | 'BONUS', amount, note, createdAt }
+    let payrollPaidMap = {}; // key: `${month}_${staffId}` => { paid: boolean }
+    let ownerMasterPin = '1234';
+    let session = null;
+
+    // Firebase State
+    let db = null;
+    let isCloudConnected = false;
+    let unsubscribers = [];
+
+    // Staff Punch Runtime State
+    let staffCoords = null;
+    let staffGpsError = null;
+    let staffDemoGps = false;
+    let staffSelectedBranchMode = 'AUTO'; // 'AUTO' or specific branchId
+    let activeTargetBranch = null;
+    let staffCurrentDist = null;
+    let staffInsideGeo = false;
+    let staffCameraStream = null;
+    let staffSelfieDataUrl = null;
+    let isWideDesktop = false;
+
+    // -----------------------------------------------------------------------
+    // 3. INITIALIZE DEVICE ID & LOCAL / CLOUD STATE
+    // -----------------------------------------------------------------------
+    function getOrCreateDeviceId() {
+      let id = localStorage.getItem(KEYS.DEVICE_ID);
+      if (!id) {
+        const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+        id = `DEV-${rand}`;
+        localStorage.setItem(KEYS.DEVICE_ID, id);
+      }
+      return id;
+    }
+
+    function getTodayStr() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function getCurrentMonthStr() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function seedSampleData() {
+      const month = getCurrentMonthStr();
+      const d1 = `${month}-02`;
+      const d2 = `${month}-04`;
+
+      const sampleLogs = [
+        {
+          id: `SHIFT_${d1}_EMP-101_1`,
+          date: d1,
+          month,
+          staffId: 'EMP-101',
+          staffName: 'Rahul Patel',
+          branchId: 'br-gota',
+          branchName: 'Phone Zone - Gota',
+          punchInTime: '09:58 AM',
+          punchInTs: new Date(`${d1}T09:58:00`).getTime(),
+          punchInSelfie: makeDemoSelfieDataUrl('Rahul Patel', 'Gota • 09:58 AM'),
+          punchOutTime: '02:15 PM',
+          punchOutTs: new Date(`${d1}T14:15:00`).getTime(),
+          punchOutSelfie: makeDemoSelfieDataUrl('Rahul Patel', 'Gota • 02:15 PM'),
+          distanceMeters: 12,
+          isLate: false
+        },
+        {
+          id: `SHIFT_${d1}_EMP-101_2`,
+          date: d1,
+          month,
+          staffId: 'EMP-101',
+          staffName: 'Rahul Patel',
+          branchId: 'br-akbarnagar',
+          branchName: 'Phone Zone NX - Akbarnagar',
+          punchInTime: '02:45 PM',
+          punchInTs: new Date(`${d1}T14:45:00`).getTime(),
+          punchInSelfie: makeDemoSelfieDataUrl('Rahul Patel', 'Akbarnagar • 02:45 PM'),
+          punchOutTime: '08:10 PM',
+          punchOutTs: new Date(`${d1}T20:10:00`).getTime(),
+          punchOutSelfie: makeDemoSelfieDataUrl('Rahul Patel', 'Akbarnagar • 08:10 PM'),
+          distanceMeters: 16,
+          isLate: false
+        },
+        {
+          id: `SHIFT_${d2}_EMP-102_1`,
+          date: d2,
+          month,
+          staffId: 'EMP-102',
+          staffName: 'Sneha Shah',
+          branchId: 'br-akbarnagar',
+          branchName: 'Phone Zone NX - Akbarnagar',
+          punchInTime: '10:22 AM',
+          punchInTs: new Date(`${d2}T10:22:00`).getTime(),
+          punchInSelfie: makeDemoSelfieDataUrl('Sneha Shah', 'Akbarnagar • 10:22 AM'),
+          punchOutTime: '08:05 PM',
+          punchOutTs: new Date(`${d2}T20:05:00`).getTime(),
+          punchOutSelfie: makeDemoSelfieDataUrl('Sneha Shah', 'Akbarnagar • 08:05 PM'),
+          distanceMeters: 19,
+          isLate: true
+        }
+      ];
+
+      const sampleLedger = [
+        {
+          id: `LED_${d1}_1`,
+          staffId: 'EMP-101',
+          month,
+          date: `${month}-03`,
+          type: 'ADVANCE',
+          amount: 1500,
+          note: 'Cash Upad (Advance)',
+          createdAt: Date.now() - 86400000 * 3
+        },
+        {
+          id: `LED_${d1}_2`,
+          staffId: 'EMP-101',
+          month,
+          date: `${month}-06`,
+          type: 'ADVANCE',
+          amount: 1000,
+          note: 'UPI Advance Payment',
+          createdAt: Date.now() - 86400000 * 2
+        },
+        {
+          id: `LED_${d1}_3`,
+          staffId: 'EMP-101',
+          month,
+          date: `${month}-07`,
+          type: 'BONUS',
+          amount: 500,
+          note: 'iPhone Sales Target Bonus',
+          createdAt: Date.now() - 86400000
+        }
+      ];
+
+      return { sampleLogs, sampleLedger };
+    }
+
+    function loadLocalState() {
+      deviceId = getOrCreateDeviceId();
+      document.getElementById('display-device-id').textContent = deviceId;
+
+      ownerMasterPin = localStorage.getItem(KEYS.OWNER_PIN) || '1234';
+      const rawBranches = localStorage.getItem(KEYS.BRANCHES);
+      const rawStaff = localStorage.getItem(KEYS.STAFF);
+      const rawLogs = localStorage.getItem(KEYS.LOGS);
+      const rawLedger = localStorage.getItem(KEYS.LEDGER);
+      const rawPaid = localStorage.getItem(KEYS.PAID_STATUS);
+
+      branches = rawBranches ? JSON.parse(rawBranches) : [...DEFAULT_BRANCHES];
+      staffList = rawStaff ? JSON.parse(rawStaff) : [...DEFAULT_STAFF];
+
+      if (!rawLogs) {
+        const seeded = seedSampleData();
+        logs = seeded.sampleLogs;
+        ledgerEntries = seeded.sampleLedger;
+      } else {
+        logs = JSON.parse(rawLogs);
+        ledgerEntries = rawLedger ? JSON.parse(rawLedger) : [];
+      }
+
+      payrollPaidMap = rawPaid ? JSON.parse(rawPaid) : {};
+      persistLocalState();
+    }
+
+    function persistLocalState() {
+      try {
+        localStorage.setItem(KEYS.BRANCHES, JSON.stringify(branches));
+        localStorage.setItem(KEYS.STAFF, JSON.stringify(staffList));
+        localStorage.setItem(KEYS.LOGS, JSON.stringify(logs));
+        localStorage.setItem(KEYS.LEDGER, JSON.stringify(ledgerEntries));
+        localStorage.setItem(KEYS.PAID_STATUS, JSON.stringify(payrollPaidMap));
+        localStorage.setItem(KEYS.OWNER_PIN, ownerMasterPin);
+      } catch (e) {
+        showToast('Local storage full. Connect Firebase Cloud Sync in Settings.', 'amber');
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. FIREBASE FIRESTORE REAL-TIME CLOUD SYNC
+    // -----------------------------------------------------------------------
+    async function initFirebaseFromSavedConfig() {
+      const saved = localStorage.getItem(KEYS.FIREBASE_CFG);
+      if (!saved) {
+        updateCloudBadges(false);
+        return;
+      }
+      document.getElementById('firebase-config-input').value = saved;
+      try {
+        const cfg = parseFirebaseConfigString(saved);
+        await connectFirebaseInstance(cfg, false);
+      } catch (err) {
+        updateCloudBadges(false);
+      }
+    }
+
+    function parseFirebaseConfigString(raw) {
+      let cleaned = raw.trim();
+      const firstBrace = cleaned.indexOf('{');
+      const lastBrace = cleaned.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+      }
+      const jsonReady = cleaned
+        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":')
+        .replace(/,\s*}/g, '}');
+      return JSON.parse(jsonReady);
+    }
+
+    async function connectFirebaseInstance(cfg, seedIfEmpty = true) {
+      unsubscribers.forEach((unsub) => unsub());
+      unsubscribers = [];
+      for (const existingApp of getApps()) {
+        await deleteApp(existingApp);
+      }
+
+      const app = initializeApp(cfg);
+      db = getFirestore(app);
+
+      if (seedIfEmpty) {
+        const branchSnap = await getDocs(collection(db, 'branches'));
+        if (branchSnap.empty) {
+          for (const b of branches) await setDoc(doc(db, 'branches', b.id), b);
+        }
+        const staffSnap = await getDocs(collection(db, 'staff'));
+        if (staffSnap.empty) {
+          for (const s of staffList) await setDoc(doc(db, 'staff', s.id), s);
+        }
+      }
+
+      unsubscribers.push(
+        onSnapshot(collection(db, 'branches'), (snap) => {
+          if (!snap.empty) {
+            branches = snap.docs.map((d) => d.data());
+            persistLocalState();
+            refreshActiveViews();
+          }
+        }),
+        onSnapshot(collection(db, 'staff'), (snap) => {
+          if (!snap.empty) {
+            staffList = snap.docs.map((d) => d.data());
+            persistLocalState();
+            refreshActiveViews();
+          }
+        }),
+        onSnapshot(collection(db, 'logs'), (snap) => {
+          logs = snap.docs
+            .map((d) => d.data())
+            .sort((a, b) => (b.punchInTs || 0) - (a.punchInTs || 0));
+          persistLocalState();
+          refreshActiveViews();
+        }),
+        onSnapshot(collection(db, 'ledgerEntries'), (snap) => {
+          ledgerEntries = snap.docs
+            .map((d) => d.data())
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          persistLocalState();
+          refreshActiveViews();
+        }),
+        onSnapshot(collection(db, 'payrollPaidMap'), (snap) => {
+          const map = {};
+          snap.docs.forEach((d) => {
+            map[d.id] = d.data();
+          });
+          payrollPaidMap = map;
+          persistLocalState();
+          refreshActiveViews();
+        })
+      );
+
+      isCloudConnected = true;
+      updateCloudBadges(true);
+    }
+
+    window.saveAndConnectFirebase = async () => {
+      const raw = document.getElementById('firebase-config-input').value;
+      if (!raw.trim()) {
+        showToast('Please paste your Firebase config object first.', 'amber');
+        return;
+      }
+      try {
+        const cfg = parseFirebaseConfigString(raw);
+        if (!cfg.apiKey || !cfg.projectId) throw new Error('Missing apiKey or projectId.');
+        showToast('Connecting to Firebase Firestore...', 'indigo');
+        await connectFirebaseInstance(cfg, true);
+        localStorage.setItem(KEYS.FIREBASE_CFG, raw.trim());
+        showToast('Connected! Multi-shop punches & advances sync live.', 'emerald');
+      } catch (err) {
+        showToast(`Firebase Error: ${err.message}`, 'rose');
+      }
+    };
+
+    window.disconnectFirebase = async () => {
+      unsubscribers.forEach((u) => u());
+      unsubscribers = [];
+      for (const app of getApps()) await deleteApp(app);
+      db = null;
+      isCloudConnected = false;
+      localStorage.removeItem(KEYS.FIREBASE_CFG);
+      updateCloudBadges(false);
+      showToast('Switched to Local Demo Mode.', 'slate');
+    };
+
+    function updateCloudBadges(connected) {
+      const headerBadge = document.getElementById('cloud-status-badge');
+      const panelBadge = document.getElementById('cloud-panel-badge');
+
+      if (connected) {
+        headerBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 shrink-0';
+        headerBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Cloud Synced`;
+        if (panelBadge) {
+          panelBadge.className = 'px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800';
+          panelBadge.textContent = 'Cloud Synced (Live)';
+        }
+      } else {
+        headerBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 shrink-0';
+        headerBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Local Demo`;
+        if (panelBadge) {
+          panelBadge.className = 'px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800';
+          panelBadge.textContent = 'Local Demo Mode';
+        }
+      }
+    }
+
+    // Cloud + Local Save Helpers
+    async function saveStaffRecord(staffObj) {
+      const idx = staffList.findIndex((s) => s.id === staffObj.id);
+      if (idx !== -1) staffList[idx] = staffObj;
+      else staffList.push(staffObj);
+      persistLocalState();
+      if (isCloudConnected && db) await setDoc(doc(db, 'staff', staffObj.id), staffObj);
+    }
+
+    async function deleteStaffRecord(staffId) {
+      staffList = staffList.filter((s) => s.id !== staffId);
+      persistLocalState();
+      if (isCloudConnected && db) await deleteDoc(doc(db, 'staff', staffId));
+    }
+
+    async function saveBranchRecord(branchObj) {
+      const idx = branches.findIndex((b) => b.id === branchObj.id);
+      if (idx !== -1) branches[idx] = branchObj;
+      else branches.push(branchObj);
+      persistLocalState();
+      if (isCloudConnected && db) await setDoc(doc(db, 'branches', branchObj.id), branchObj);
+    }
+
+    async function saveLogRecord(logObj) {
+      const idx = logs.findIndex((l) => l.id === logObj.id);
+      if (idx !== -1) logs[idx] = logObj;
+      else logs.unshift(logObj);
+      persistLocalState();
+      if (isCloudConnected && db) await setDoc(doc(db, 'logs', logObj.id), logObj);
+    }
+
+    async function saveLedgerEntryRecord(entryObj) {
+      ledgerEntries.unshift(entryObj);
+      persistLocalState();
+      if (isCloudConnected && db) await setDoc(doc(db, 'ledgerEntries', entryObj.id), entryObj);
+    }
+
+    async function deleteLedgerEntryRecord(entryId) {
+      ledgerEntries = ledgerEntries.filter((e) => e.id !== entryId);
+      persistLocalState();
+      if (isCloudConnected && db) await deleteDoc(doc(db, 'ledgerEntries', entryId));
+    }
+
+    async function savePayrollPaidRecord(key, obj) {
+      payrollPaidMap[key] = obj;
+      persistLocalState();
+      if (isCloudConnected && db) await setDoc(doc(db, 'payrollPaidMap', key), obj);
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. LOGIN & STRICT SINGLE-PHONE DEVICE LOCK
+    // -----------------------------------------------------------------------
+    window.switchLoginTab = (tab) => {
+      const staffTab = document.getElementById('login-tab-staff');
+      const ownerTab = document.getElementById('login-tab-owner');
+      const staffForm = document.getElementById('form-staff-login');
+      const ownerForm = document.getElementById('form-owner-login');
+      document.getElementById('device-lock-alert').classList.add('hidden');
+
+      if (tab === 'staff') {
+        staffTab.className = 'py-2.5 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-xs transition';
+        ownerTab.className = 'py-2.5 rounded-xl text-xs font-extrabold text-slate-600 hover:text-slate-900 transition';
+        staffForm.classList.remove('hidden');
+        ownerForm.classList.add('hidden');
+      } else {
+        ownerTab.className = 'py-2.5 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-xs transition';
+        staffTab.className = 'py-2.5 rounded-xl text-xs font-extrabold text-slate-600 hover:text-slate-900 transition';
+        ownerForm.classList.remove('hidden');
+        staffForm.classList.add('hidden');
+      }
+    };
+
+    window.fillDemoStaff = (id, pin) => {
+      document.getElementById('login-staff-id').value = id;
+      document.getElementById('login-staff-pin').value = pin;
+      document.getElementById('device-lock-alert').classList.add('hidden');
+    };
+
+    window.submitStaffLogin = async (e) => {
+      e.preventDefault();
+      const inputId = document.getElementById('login-staff-id').value.trim().toUpperCase();
+      const inputPin = document.getElementById('login-staff-pin').value.trim();
+      const lockAlert = document.getElementById('device-lock-alert');
+      const lockMsg = document.getElementById('device-lock-alert-msg');
+
+      lockAlert.classList.add('hidden');
+
+      const member = staffList.find((s) => s.id.toUpperCase() === inputId);
+      if (!member) {
+        showToast('Staff ID not found. Check ID or ask Owner.', 'rose');
+        return;
+      }
+      if (member.pin !== inputPin) {
+        showToast('Incorrect 4-digit PIN.', 'rose');
+        return;
+      }
+
+      // Single-phone device binding check
+      const phoneBoundToOther = staffList.find(
+        (s) => s.boundDeviceId && s.boundDeviceId === deviceId && s.id !== member.id
+      );
+      if (phoneBoundToOther) {
+        lockMsg.textContent = `This phone is already registered to another staff member (${phoneBoundToOther.name} - ${phoneBoundToOther.id}). One phone cannot punch for multiple employees.`;
+        lockAlert.classList.remove('hidden');
+        return;
+      }
+
+      if (member.boundDeviceId && member.boundDeviceId !== deviceId) {
+        lockMsg.textContent = `Account locked to another registered phone (${member.boundDeviceId}). Contact Owner to reset device lock.`;
+        lockAlert.classList.remove('hidden');
+        return;
+      }
+
+      if (!member.boundDeviceId) {
+        member.boundDeviceId = deviceId;
+        await saveStaffRecord(member);
+        showToast(`Phone (${deviceId}) linked to ${member.name}.`, 'emerald');
+      } else {
+        showToast(`Welcome back, ${member.name}!`, 'emerald');
+      }
+
+      session = { role: 'staff', staffId: member.id };
+      localStorage.setItem(KEYS.SESSION, JSON.stringify(session));
+      enterAuthenticatedScreen();
+    };
+
+    window.submitOwnerLogin = (e) => {
+      e.preventDefault();
+      const pin = document.getElementById('login-owner-pin').value.trim();
+      if (pin !== ownerMasterPin) {
+        showToast('Invalid Owner Master PIN.', 'rose');
+        return;
+      }
+      session = { role: 'owner' };
+      localStorage.setItem(KEYS.SESSION, JSON.stringify(session));
+      showToast('Owner Dashboard unlocked.', 'emerald');
+      enterAuthenticatedScreen();
+    };
+
+    window.handleLogout = () => {
+      stopStaffCamera();
+      resetStaffSelfie();
+      session = null;
+      localStorage.removeItem(KEYS.SESSION);
+
+      document.getElementById('screen-staff').classList.add('hidden');
+      document.getElementById('screen-owner').classList.add('hidden');
+      document.getElementById('screen-login').classList.remove('hidden');
+      document.getElementById('btn-logout').classList.add('hidden');
+      document.getElementById('btn-logout').classList.remove('inline-flex');
+      document.getElementById('header-subtitle').textContent = 'Multi-Shop Attendance & Payroll';
+
+      if (isWideDesktop) toggleDesktopWidth();
+      lucide.createIcons();
+    };
+
+    function enterAuthenticatedScreen() {
+      document.getElementById('screen-login').classList.add('hidden');
+      const logoutBtn = document.getElementById('btn-logout');
+      logoutBtn.classList.remove('hidden');
+      logoutBtn.classList.add('inline-flex');
+
+      if (session.role === 'staff') {
+        const member = staffList.find((s) => s.id === session.staffId);
+        if (!member) {
+          handleLogout();
+          return;
+        }
+        document.getElementById('screen-owner').classList.add('hidden');
+        document.getElementById('screen-staff').classList.remove('hidden');
+        document.getElementById('header-subtitle').textContent = `${member.name} (${member.id})`;
+
+        const curMonth = getCurrentMonthStr();
+        document.getElementById('staff-att-month').value = curMonth;
+        document.getElementById('staff-sal-month').value = curMonth;
+        staffSelectedBranchMode = 'AUTO';
+
+        switchStaffTab('punch');
+        refreshStaffGPS();
+      } else if (session.role === 'owner') {
+        document.getElementById('screen-staff').classList.add('hidden');
+        document.getElementById('screen-owner').classList.remove('hidden');
+        document.getElementById('header-subtitle').textContent = 'Owner Admin Portal';
+
+        document.getElementById('own-payroll-month').value = getCurrentMonthStr();
+        document.getElementById('ledger-date-input').value = getTodayStr();
+        switchOwnerTab('logs');
+      }
+      refreshActiveViews();
+    }
+
+    window.toggleDesktopWidth = () => {
+      const shell = document.getElementById('app-shell');
+      const ownerNav = document.getElementById('owner-bottom-nav');
+      isWideDesktop = !isWideDesktop;
+      if (isWideDesktop) {
+        shell.classList.remove('max-w-md');
+        shell.classList.add('max-w-4xl');
+        ownerNav.classList.remove('max-w-md');
+        ownerNav.classList.add('max-w-4xl');
+      } else {
+        shell.classList.remove('max-w-4xl');
+        shell.classList.add('max-w-md');
+        ownerNav.classList.remove('max-w-4xl');
+        ownerNav.classList.add('max-w-md');
+      }
+    };
+
+    // -----------------------------------------------------------------------
+    // 6. MULTI-SHOP AUTO-DETECT GPS + MULTI-SHIFT PUNCH IN / PUNCH OUT
+    // -----------------------------------------------------------------------
+    function haversineMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = (deg) => (deg * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+
+    window.refreshStaffGPS = () => {
+      const spin = document.getElementById('staff-gps-spin');
+      if (spin) spin.classList.add('animate-spin');
+
+      if (!('geolocation' in navigator)) {
+        staffGpsError = 'GPS not supported on this browser.';
+        if (spin) spin.classList.remove('animate-spin');
+        evaluateStaffPunchReadiness();
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          staffCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          staffGpsError = null;
+          if (spin) spin.classList.remove('animate-spin');
+          evaluateStaffPunchReadiness();
+        },
+        (err) => {
+          staffGpsError = err.message || 'Location permission blocked.';
+          if (spin) spin.classList.remove('animate-spin');
+          evaluateStaffPunchReadiness();
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+      );
+    };
+
+    window.onStaffBranchSelectChange = () => {
+      staffSelectedBranchMode = document.getElementById('staff-branch-selector').value;
+      evaluateStaffPunchReadiness();
+    };
+
+    window.toggleStaffDemoGPS = () => {
+      staffDemoGps = document.getElementById('staff-demo-gps-toggle').checked;
+      evaluateStaffPunchReadiness();
+      if (staffDemoGps && activeTargetBranch) {
+        showToast(`Simulated GPS inside ${activeTargetBranch.name} (10m).`, 'indigo');
+      }
+    };
+
+    function evaluateStaffPunchReadiness() {
+      if (!session || session.role !== 'staff') return;
+      const member = staffList.find((s) => s.id === session.staffId);
+      if (!member) return;
+
+      const homeBranch = branches.find((b) => b.id === member.branchId) || branches[0];
+      const initials = member.name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
+      document.getElementById('staff-badge-initials').textContent = initials;
+      document.getElementById('staff-profile-name').textContent = member.name;
+      document.getElementById('staff-profile-branch').textContent = `Home: ${homeBranch ? homeBranch.name : 'Any Outlet'}`;
+
+      // Populate multi-shop selector dropdown
+      const brSelect = document.getElementById('staff-branch-selector');
+      brSelect.innerHTML =
+        `<option value="AUTO">Auto-Detect Nearest Shop</option>` +
+        branches.map((b) => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+      if (staffSelectedBranchMode !== 'AUTO' && branches.some((b) => b.id === staffSelectedBranchMode)) {
+        brSelect.value = staffSelectedBranchMode;
+      } else {
+        brSelect.value = 'AUTO';
+        staffSelectedBranchMode = 'AUTO';
+      }
+
+      // Check if staff currently has an OPEN (active) shift today
+      const today = getTodayStr();
+      const todayLogs = logs
+        .filter((l) => l.date === today && l.staffId === member.id)
+        .sort((a, b) => (a.punchInTs || 0) - (b.punchInTs || 0));
+      const openShift = todayLogs.find((l) => !l.punchOutTime);
+
+      // Determine Target Outlet:
+      // 1. If user manually picked an outlet in dropdown, check that outlet.
+      // 2. Otherwise, auto-detect the nearest outlet across ALL configured Phone Zone branches!
+      let targetBranch = homeBranch;
+      let computedDist = null;
+
+      if (staffSelectedBranchMode !== 'AUTO') {
+        targetBranch = branches.find((b) => b.id === staffSelectedBranchMode) || homeBranch;
+        if (staffCoords) {
+          computedDist = haversineMeters(staffCoords.lat, staffCoords.lng, targetBranch.lat, targetBranch.lng);
+        }
+      } else if (staffCoords && branches.length > 0) {
+        // Auto-detect closest branch among ALL shops
+        let minD = Infinity;
+        branches.forEach((b) => {
+          const d = haversineMeters(staffCoords.lat, staffCoords.lng, b.lat, b.lng);
+          if (d < minD) {
+            minD = d;
+            targetBranch = b;
+          }
+        });
+        computedDist = minD;
+      } else if (openShift) {
+        // Default to the shop where the open shift started if GPS hasn't resolved yet
+        targetBranch = branches.find((b) => b.id === openShift.branchId) || homeBranch;
+      }
+
+      activeTargetBranch = targetBranch;
+
+      const card = document.getElementById('staff-gps-card');
+      const iconBox = document.getElementById('staff-gps-icon-box');
+      const pulse = document.getElementById('staff-gps-pulse');
+      const pill = document.getElementById('staff-gps-status-pill');
+      const title = document.getElementById('staff-gps-title');
+      const desc = document.getElementById('staff-gps-desc');
+      const distVal = document.getElementById('staff-distance-val');
+      const radVal = document.getElementById('staff-radius-val');
+
+      radVal.textContent = `(Max ${targetBranch.radius}m)`;
+
+      if (staffDemoGps) {
+        staffCurrentDist = 10;
+        staffInsideGeo = true;
+        card.className = 'rounded-3xl border-2 border-emerald-400 bg-emerald-50/70 p-4 space-y-3 transition-all';
+        iconBox.className = 'relative w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5';
+        pulse.classList.remove('hidden');
+        pill.className = 'inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white';
+        pill.textContent = 'Inside Shop Zone (Simulated)';
+        title.textContent = `Verified at ${targetBranch.name}`;
+        desc.textContent = `Ready to punch at ${targetBranch.name}.`;
+        distVal.textContent = '10 m';
+        distVal.className = 'font-extrabold text-emerald-700 ml-1';
+      } else if (staffCoords && computedDist !== null) {
+        staffCurrentDist = computedDist;
+        staffInsideGeo = staffCurrentDist <= targetBranch.radius;
+        distVal.textContent = `${staffCurrentDist.toLocaleString()} m`;
+
+        if (staffInsideGeo) {
+          card.className = 'rounded-3xl border-2 border-emerald-400 bg-emerald-50/70 p-4 space-y-3 transition-all';
+          iconBox.className = 'relative w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5';
+          pulse.classList.remove('hidden');
+          pill.className = 'inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white';
+          pill.textContent = staffSelectedBranchMode === 'AUTO' ? 'Auto-Detected Shop' : 'Inside Selected Shop';
+          title.textContent = `Verified at ${targetBranch.name}`;
+          desc.textContent = `Inside ${targetBranch.radius}m geo-fence boundary.`;
+          distVal.className = 'font-extrabold text-emerald-700 ml-1';
+        } else {
+          card.className = 'rounded-3xl border-2 border-rose-300 bg-rose-50/70 p-4 space-y-3 transition-all';
+          iconBox.className = 'relative w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 mt-0.5';
+          pulse.classList.add('hidden');
+          pill.className = 'inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-600 text-white';
+          pill.textContent = 'Outside All Shops';
+          title.textContent = `Nearest: ${targetBranch.name}`;
+          desc.textContent = `Move within ${targetBranch.radius}m of any Phone Zone shop (or toggle "Simulate Inside").`;
+          distVal.className = 'font-extrabold text-rose-700 ml-1';
+        }
+      } else {
+        staffCurrentDist = null;
+        staffInsideGeo = false;
+        card.className = 'rounded-3xl border-2 border-amber-300 bg-amber-50/70 p-4 space-y-3 transition-all';
+        iconBox.className = 'relative w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5';
+        pulse.classList.add('hidden');
+        pill.className = 'inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-600 text-white';
+        pill.textContent = staffGpsError ? 'GPS Blocked' : 'Scanning GPS...';
+        title.textContent = staffGpsError ? 'Location Access Needed' : `Checking ${targetBranch.name}...`;
+        desc.textContent = staffGpsError || 'Allow browser location permission to detect shop.';
+        distVal.textContent = '-- m';
+        distVal.className = 'font-extrabold text-slate-900 ml-1';
+      }
+
+      // Multi-Shift Punch Buttons State (Allows multiple shifts per day across shops!)
+      const shiftText = document.getElementById('staff-today-shift-text');
+      const todayPill = document.getElementById('staff-today-pill');
+      const btnIn = document.getElementById('btn-staff-punch-in');
+      const btnOut = document.getElementById('btn-staff-punch-out');
+      const hint = document.getElementById('punch-requirement-hint');
+
+      const hasSelfie = Boolean(staffSelfieDataUrl);
+      const readyToPunch = staffInsideGeo && hasSelfie;
+
+      if (openShift) {
+        shiftText.textContent = `On Duty at ${openShift.branchName} (${openShift.punchInTime})`;
+        todayPill.className = 'px-2.5 py-1 rounded-xl text-xs font-extrabold bg-emerald-100 text-emerald-800 shrink-0';
+        todayPill.textContent = `Shift #${todayLogs.length}`;
+
+        btnIn.disabled = true;
+        btnOut.disabled = !readyToPunch;
+        hint.textContent = readyToPunch
+          ? `Ready to Punch Out at ${targetBranch.name}!`
+          : 'Verify Inside Shop GPS & take a Live Selfie to Punch Out.';
+      } else {
+        const nextShiftNum = todayLogs.length + 1;
+        shiftText.textContent =
+          todayLogs.length === 0
+            ? 'Not Checked In Yet'
+            : `${todayLogs.length} Shift(s) Done • Ready for Shift #${nextShiftNum}`;
+        todayPill.className = 'px-2.5 py-1 rounded-xl text-xs font-extrabold bg-slate-100 text-slate-700 shrink-0';
+        todayPill.textContent = todayLogs.length === 0 ? 'Pending' : 'Between Shifts';
+
+        btnIn.disabled = !readyToPunch;
+        btnOut.disabled = true;
+        hint.textContent = readyToPunch
+          ? `Tap PUNCH IN to start Shift #${nextShiftNum} at ${targetBranch.name}.`
+          : 'Verify Inside Shop GPS & take a Live Selfie to Punch In.';
+      }
+
+      // Render Today's Multi-Shop Shifts Timeline
+      const shiftsBox = document.getElementById('staff-today-shifts-box');
+      const shiftsList = document.getElementById('staff-today-shifts-list');
+      if (todayLogs.length > 0) {
+        shiftsBox.classList.remove('hidden');
+        shiftsList.innerHTML = todayLogs
+          .map(
+            (s, idx) => `
+            <div class="flex items-center justify-between text-xs bg-slate-50 px-3 py-2 rounded-xl border border-slate-200/70">
+              <div class="min-w-0">
+                <span class="font-extrabold text-indigo-700">#${idx + 1}</span>
+                <span class="font-bold text-slate-800 ml-1">${escapeHtml(s.branchName)}</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-600 shrink-0">
+                ${s.punchInTime} &rarr; ${s.punchOutTime || '<span class="text-emerald-600">Active</span>'}
+              </div>
+            </div>
+          `
+          )
+          .join('');
+      } else {
+        shiftsBox.classList.add('hidden');
+      }
+    }
+
+    // Mandatory Live Camera & Canvas Compression (~20KB JPEG)
+    window.startStaffCamera = async () => {
+      const video = document.getElementById('staff-video');
+      const placeholder = document.getElementById('staff-cam-placeholder');
+      const img = document.getElementById('staff-selfie-img');
+      const btnOpen = document.getElementById('btn-open-cam');
+      const btnSnap = document.getElementById('btn-snap-selfie');
+
+      try {
+        staffCameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 360 } },
+          audio: false
+        });
+        video.srcObject = staffCameraStream;
+        video.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+        img.classList.add('hidden');
+        btnOpen.classList.add('hidden');
+        btnSnap.classList.remove('hidden');
+      } catch (err) {
+        showToast('Webcam unavailable in browser. Use "Simulated Camera" to test.', 'amber');
+      }
+    };
+
+    window.captureStaffSelfie = () => {
+      const video = document.getElementById('staff-video');
+      if (!video.videoWidth) return;
+
+      const targetW = 220;
+      const ratio = video.videoHeight / video.videoWidth;
+      const targetH = Math.round(targetW * ratio);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(targetW, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, targetW, targetH);
+
+      staffSelfieDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      stopStaffCamera();
+      applySelfiePreviewUI();
+      showToast('Live selfie captured!', 'emerald');
+    };
+
+    function makeDemoSelfieDataUrl(staffName, subLabel) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 220;
+      canvas.height = 165;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, 220, 165);
+      ctx.fillStyle = '#4f46e5';
+      ctx.beginPath();
+      ctx.arc(110, 62, 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(staffName, 110, 114);
+      ctx.fillStyle = '#34d399';
+      ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.fillText(subLabel, 110, 136);
+      return canvas.toDataURL('image/jpeg', 0.65);
+    }
+
+    window.captureSimulatedSelfie = () => {
+      stopStaffCamera();
+      const member = staffList.find((s) => s.id === session?.staffId);
+      const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const shopShort = activeTargetBranch ? activeTargetBranch.name.replace('Phone Zone ', '') : 'Shop';
+      staffSelfieDataUrl = makeDemoSelfieDataUrl(member ? member.name : 'Staff', `${shopShort} • ${timeLabel}`);
+      applySelfiePreviewUI();
+      showToast('Simulated live camera snapshot captured.', 'indigo');
+    };
+
+    function applySelfiePreviewUI() {
+      const img = document.getElementById('staff-selfie-img');
+      img.src = staffSelfieDataUrl;
+      img.classList.remove('hidden');
+      document.getElementById('staff-cam-placeholder').classList.add('hidden');
+      document.getElementById('staff-selfie-ok-badge').classList.remove('hidden');
+      document.getElementById('selfie-status-tag').textContent = 'Verified';
+      document.getElementById('selfie-status-tag').className = 'text-[11px] font-extrabold text-emerald-600';
+
+      document.getElementById('btn-open-cam').classList.add('hidden');
+      document.getElementById('btn-snap-selfie').classList.add('hidden');
+      document.getElementById('btn-sim-selfie').classList.add('hidden');
+      document.getElementById('btn-retake-selfie').classList.remove('hidden');
+
+      evaluateStaffPunchReadiness();
+    }
+
+    window.resetStaffSelfie = () => {
+      staffSelfieDataUrl = null;
+      const img = document.getElementById('staff-selfie-img');
+      img.classList.add('hidden');
+      img.src = '';
+      document.getElementById('staff-selfie-ok-badge').classList.add('hidden');
+      document.getElementById('staff-cam-placeholder').classList.remove('hidden');
+      document.getElementById('selfie-status-tag').textContent = 'Required';
+      document.getElementById('selfie-status-tag').className = 'text-[11px] font-bold text-amber-600';
+
+      document.getElementById('btn-open-cam').classList.remove('hidden');
+      document.getElementById('btn-sim-selfie').classList.remove('hidden');
+      document.getElementById('btn-snap-selfie').classList.add('hidden');
+      document.getElementById('btn-retake-selfie').classList.add('hidden');
+
+      evaluateStaffPunchReadiness();
+    };
+
+    function stopStaffCamera() {
+      if (staffCameraStream) {
+        staffCameraStream.getTracks().forEach((t) => t.stop());
+        staffCameraStream = null;
+      }
+      document.getElementById('staff-video').classList.add('hidden');
+    }
+
+    window.executeStaffPunch = async (direction) => {
+      if (!staffInsideGeo || !activeTargetBranch) {
+        showToast('Blocked: You must be inside a Phone Zone shop geo-fence.', 'rose');
+        return;
+      }
+      if (!staffSelfieDataUrl) {
+        showToast('Blocked: Live selfie is mandatory before punching.', 'rose');
+        return;
+      }
+
+      const member = staffList.find((s) => s.id === session.staffId);
+      const today = getTodayStr();
+      const month = getCurrentMonthStr();
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const todayLogs = logs.filter((l) => l.date === today && l.staffId === member.id);
+      const openShift = todayLogs.find((l) => !l.punchOutTime);
+
+      if (direction === 'IN') {
+        if (openShift) {
+          showToast('You already have an active shift. Punch Out first before starting another shift.', 'amber');
+          return;
+        }
+
+        // Only evaluate Late Mark on the FIRST shift of the day
+        let isLate = false;
+        if (todayLogs.length === 0) {
+          const [shHour, shMin] = (member.shiftStart || '10:00').split(':').map(Number);
+          const shiftDeadline = new Date(now);
+          shiftDeadline.setHours(shHour, shMin + 15, 0, 0);
+          isLate = now.getTime() > shiftDeadline.getTime();
+        }
+
+        const shiftLog = {
+          id: `SHIFT_${today}_${member.id}_${now.getTime()}`,
+          date: today,
+          month,
+          staffId: member.id,
+          staffName: member.name,
+          branchId: activeTargetBranch.id,
+          branchName: activeTargetBranch.name,
+          punchInTime: timeStr,
+          punchInTs: now.getTime(),
+          punchInSelfie: staffSelfieDataUrl,
+          punchOutTime: null,
+          punchOutTs: null,
+          punchOutSelfie: null,
+          distanceMeters: staffCurrentDist ?? 0,
+          isLate
+        };
+
+        await saveLogRecord(shiftLog);
+        resetStaffSelfie();
+        showToast(`Punched IN at ${activeTargetBranch.name} (${timeStr})!`, 'emerald');
+      } else {
+        if (!openShift) {
+          showToast('No active shift found to Punch Out.', 'amber');
+          return;
+        }
+
+        const updatedShift = {
+          ...openShift,
+          punchOutTime: timeStr,
+          punchOutTs: now.getTime(),
+          punchOutSelfie: staffSelfieDataUrl,
+          punchOutBranchName: activeTargetBranch.name
+        };
+
+        await saveLogRecord(updatedShift);
+        resetStaffSelfie();
+        showToast(`Punched OUT at ${timeStr}! Shift saved.`, 'emerald');
+      }
+
+      refreshActiveViews();
+    };
+
+    // -----------------------------------------------------------------------
+    // 7. MULTI-SHOP DAILY AGGREGATION & ITEMIZED ADVANCE (+ / -) LEDGER MATH
+    // -----------------------------------------------------------------------
+    function getDaysInMonth(monthStr) {
+      const [y, m] = monthStr.split('-').map(Number);
+      return new Date(y, m, 0).getDate();
+    }
+
+    function calculateStaffMonthlyPayroll(member, monthStr) {
+      const monthLogs = logs.filter((l) => l.staffId === member.id && l.month === monthStr);
+
+      // Group all shifts by Date so visiting 2 shops in 1 day aggregates hours cleanly into 1 day!
+      const byDate = {};
+      monthLogs.forEach((l) => {
+        if (!byDate[l.date]) {
+          byDate[l.date] = { shifts: [], totalMins: 0, isLate: false, hasActive: false };
+        }
+        byDate[l.date].shifts.push(l);
+        if (l.isLate) byDate[l.date].isLate = true;
+        if (l.punchInTs && l.punchOutTs) {
+          byDate[l.date].totalMins += Math.max(0, Math.round((l.punchOutTs - l.punchInTs) / 60000));
+        } else if (l.punchInTs) {
+          byDate[l.date].hasActive = true;
+          byDate[l.date].totalMins += 300; // Active shift default credit
+        }
+      });
+
+      let fullDays = 0;
+      let halfDays = 0;
+      let lateCount = 0;
+      let totalMinutes = 0;
+
+      Object.values(byDate).forEach((dayData) => {
+        totalMinutes += dayData.totalMins;
+        if (dayData.isLate) lateCount += 1;
+        // If all shifts on that day are closed and total worked < 5 hours (300 mins) -> Half Day
+        if (!dayData.hasActive && dayData.totalMins < 300) {
+          halfDays += 1;
+        } else {
+          fullDays += 1;
+        }
+      });
+
+      const daysInMonth = getDaysInMonth(monthStr);
+      const dailyRate = member.monthlySalary / daysInMonth;
+
+      // Every 3 late marks = 0.5 day penalty
+      const latePenaltyDays = Math.floor(lateCount / 3) * 0.5;
+      const earnedDays = Math.max(0, fullDays + halfDays * 0.5 - latePenaltyDays);
+      const earnedBasePay = Math.round(earnedDays * dailyRate);
+
+      // Sum all itemized ledger entries for this staff & month
+      const memberLedger = ledgerEntries
+        .filter((e) => e.staffId === member.id && e.month === monthStr)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      let totalBonus = 0;
+      let totalAdvance = 0;
+      memberLedger.forEach((entry) => {
+        const amt = Number(entry.amount) || 0;
+        if (entry.type === 'BONUS') totalBonus += amt;
+        else totalAdvance += amt;
+      });
+
+      // Signed Net Balance: positive (+) means payable to staff; negative (-) means staff took extra advance!
+      const netBalance = earnedBasePay + totalBonus - totalAdvance;
+      const paidKey = `${monthStr}_${member.id}`;
+      const isPaid = Boolean(payrollPaidMap[paidKey]?.paid);
+
+      return {
+        daysInMonth,
+        dailyRate: Math.round(dailyRate),
+        fullDays,
+        halfDays,
+        lateCount,
+        latePenaltyDays,
+        earnedDays,
+        earnedBasePay,
+        totalBonus,
+        totalAdvance,
+        netBalance,
+        isPaid,
+        totalHoursText: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`,
+        monthLogs,
+        memberLedger
+      };
+    }
+
+    window.renderStaffAttendanceView = () => {
+      if (!session || session.role !== 'staff') return;
+      const member = staffList.find((s) => s.id === session.staffId);
+      const monthStr = document.getElementById('staff-att-month').value || getCurrentMonthStr();
+      const stats = calculateStaffMonthlyPayroll(member, monthStr);
+
+      document.getElementById('my-stat-present').textContent = stats.fullDays;
+      document.getElementById('my-stat-half').textContent = stats.halfDays;
+      document.getElementById('my-stat-late').textContent = stats.lateCount;
+      document.getElementById('my-stat-hours').textContent = stats.totalHoursText;
+
+      const listEl = document.getElementById('staff-personal-logs-list');
+      if (stats.monthLogs.length === 0) {
+        listEl.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-xs text-slate-500">No shift logs recorded for ${monthStr}.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = stats.monthLogs
+        .map((l) => {
+          const durMins = l.punchInTs && l.punchOutTs ? Math.round((l.punchOutTs - l.punchInTs) / 60000) : null;
+          const durText = durMins !== null ? `${Math.floor(durMins / 60)}h ${durMins % 60}m` : 'Active';
+          return `
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                ${
+                  l.punchInSelfie
+                    ? `<img src="${l.punchInSelfie}" onclick="openPhotoModal('${escapeAttr(l.staffName)}', '${escapeAttr(l.branchName)} • ${l.date} (${l.punchInTime})', '${l.punchInSelfie}')" class="w-11 h-11 rounded-xl object-cover border border-slate-200 cursor-pointer shrink-0" />`
+                    : `<div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0"><i data-lucide="user" class="w-5 h-5"></i></div>`
+                }
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-extrabold text-slate-900">${l.date}</span>
+                    <span class="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold truncate">${escapeHtml(l.branchName)}</span>
+                  </div>
+                  <div class="text-[11px] text-slate-600 mt-0.5">
+                    In: <span class="font-bold">${l.punchInTime}</span> &bull; Out: <span class="font-bold">${l.punchOutTime || 'On Duty'}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="text-right shrink-0">
+                <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  l.isLate ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                }">${durText}</span>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+      lucide.createIcons();
+    };
+
+    window.renderStaffSalaryView = () => {
+      if (!session || session.role !== 'staff') return;
+      const member = staffList.find((s) => s.id === session.staffId);
+      const monthStr = document.getElementById('staff-sal-month').value || getCurrentMonthStr();
+      const pay = calculateStaffMonthlyPayroll(member, monthStr);
+
+      const isNegative = pay.netBalance < 0;
+      const formattedNet = `${pay.netBalance >= 0 ? '+' : '-'}₹${Math.abs(pay.netBalance).toLocaleString('en-IN')}`;
+
+      document.getElementById('staff-salary-card').innerHTML = `
+        <div class="${isNegative ? 'bg-rose-950' : 'bg-slate-900'} text-white p-5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Net Salary Balance (${monthStr})</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+              pay.isPaid
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+                : isNegative
+                ? 'bg-rose-500/20 text-rose-200 border border-rose-400/30'
+                : 'bg-amber-500/20 text-amber-300 border border-amber-400/30'
+            }">${pay.isPaid ? 'SETTLED / PAID' : isNegative ? 'EXTRA ADVANCE (-)' : 'PAYABLE (+)'}</span>
+          </div>
+          <div class="text-3xl font-extrabold mt-1 tracking-tight ${isNegative ? 'text-rose-300' : 'text-emerald-300'}">${formattedNet}</div>
+          <div class="text-[11px] text-slate-300 mt-1">
+            ${
+              isNegative
+                ? 'You have taken more advance than earned salary so far.'
+                : 'Balance payable to you after deducting all advances.'
+            }
+          </div>
+        </div>
+
+        <div class="p-4 space-y-2.5 text-xs">
+          <div class="flex justify-between py-1.5 border-b border-slate-100">
+            <span class="text-slate-500 font-medium">Base Monthly Salary</span>
+            <span class="font-extrabold text-slate-900">₹${member.monthlySalary.toLocaleString('en-IN')}</span>
+          </div>
+          <div class="flex justify-between py-1.5 border-b border-slate-100">
+            <span class="text-slate-500 font-medium">Attendance (${pay.fullDays} Full, ${pay.halfDays} Half, ${pay.lateCount} Late)</span>
+            <span class="font-bold text-slate-800">${pay.earnedDays} Effective Days</span>
+          </div>
+          <div class="flex justify-between py-1.5 border-b border-slate-100">
+            <span class="text-slate-500 font-medium">Earned Salary (+)</span>
+            <span class="font-extrabold text-slate-900">+₹${pay.earnedBasePay.toLocaleString('en-IN')}</span>
+          </div>
+          <div class="flex justify-between py-1.5 border-b border-slate-100">
+            <span class="text-slate-500 font-medium">Total Bonus / Incentives (+)</span>
+            <span class="font-extrabold text-emerald-600">+₹${pay.totalBonus.toLocaleString('en-IN')}</span>
+          </div>
+          <div class="flex justify-between py-1.5">
+            <span class="text-slate-500 font-medium">Total Advances / Deductions (-)</span>
+            <span class="font-extrabold text-rose-600">-₹${pay.totalAdvance.toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+      `;
+
+      // Render itemized Advance & Bonus Ledger Entries for Staff
+      document.getElementById('staff-ledger-count-badge').textContent = `${pay.memberLedger.length} Entries`;
+      const ledgerListEl = document.getElementById('staff-ledger-entries-list');
+      if (pay.memberLedger.length === 0) {
+        ledgerListEl.innerHTML = `<div class="text-center py-4 text-xs text-slate-400">No advance or bonus entries recorded in ${monthStr}.</div>`;
+      } else {
+        ledgerListEl.innerHTML = pay.memberLedger
+          .map((e) => {
+            const isBonus = e.type === 'BONUS';
+            return `
+              <div class="flex items-center justify-between p-3 rounded-2xl border ${
+                isBonus ? 'bg-emerald-50/50 border-emerald-200/80' : 'bg-rose-50/50 border-rose-200/80'
+              }">
+                <div class="min-w-0 pr-2">
+                  <div class="text-xs font-extrabold text-slate-900 truncate">${escapeHtml(e.note)}</div>
+                  <div class="text-[10px] font-semibold text-slate-500 mt-0.5">${e.date} &bull; ${isBonus ? 'Bonus / Addition' : 'Advance / Deduction'}</div>
+                </div>
+                <div class="text-sm font-extrabold shrink-0 ${isBonus ? 'text-emerald-700' : 'text-rose-700'}">
+                  ${isBonus ? '+' : '-'}₹${Number(e.amount).toLocaleString('en-IN')}
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+      }
+    };
+
+    window.switchStaffTab = (tab) => {
+      ['punch', 'attendance', 'salary'].forEach((t) => {
+        const view = document.getElementById(`staff-view-${t}`);
+        const nav = document.getElementById(`snav-${t}`);
+        if (t === tab) {
+          view.classList.remove('hidden');
+          nav.className = 'flex flex-col items-center justify-center py-1.5 rounded-2xl text-indigo-600 bg-indigo-50/80 font-extrabold text-[11px] transition';
+        } else {
+          view.classList.add('hidden');
+          nav.className = 'flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-500 hover:text-slate-900 font-bold text-[11px] transition';
+        }
+      });
+
+      if (tab !== 'punch') stopStaffCamera();
+      if (tab === 'punch') evaluateStaffPunchReadiness();
+      if (tab === 'attendance') renderStaffAttendanceView();
+      if (tab === 'salary') renderStaffSalaryView();
+    };
+
+    // -----------------------------------------------------------------------
+    // 8. OWNER ADMIN PORTAL: MULTI-SHOP LOGS, ADVANCE LEDGER & BRANCHES
+    // -----------------------------------------------------------------------
+    window.switchOwnerTab = (tab) => {
+      ['logs', 'payroll', 'staff', 'cloud'].forEach((t) => {
+        const view = document.getElementById(`owner-view-${t}`);
+        const nav = document.getElementById(`onav-${t}`);
+        if (t === tab) {
+          view.classList.remove('hidden');
+          nav.className = 'flex flex-col items-center justify-center py-1.5 rounded-2xl text-indigo-600 bg-indigo-50/80 font-extrabold text-[10px] transition';
+        } else {
+          view.classList.add('hidden');
+          nav.className = 'flex flex-col items-center justify-center py-1.5 rounded-2xl text-slate-500 hover:text-slate-900 font-bold text-[10px] transition';
+        }
+      });
+
+      if (tab === 'logs') renderOwnerLogs();
+      if (tab === 'payroll') renderOwnerPayroll();
+      if (tab === 'staff') renderOwnerStaffManager();
+      if (tab === 'cloud') renderOwnerBranchEditor();
+    };
+
+    window.renderOwnerLogs = () => {
+      const today = getTodayStr();
+      const todayLogs = logs.filter((l) => l.date === today);
+      const presentUnique = new Set(todayLogs.map((l) => l.staffId)).size;
+
+      document.getElementById('own-kpi-total').textContent = staffList.length;
+      document.getElementById('own-kpi-present').textContent = presentUnique;
+      document.getElementById('own-kpi-shifts').textContent = todayLogs.length;
+
+      const brSelect = document.getElementById('own-filter-branch');
+      const prevBr = brSelect.value;
+      brSelect.innerHTML =
+        `<option value="ALL">All Outlets</option>` +
+        branches.map((b) => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+      if (prevBr) brSelect.value = prevBr;
+
+      const filterDate = document.getElementById('own-filter-date').value;
+      const filterBranch = brSelect.value;
+
+      const filtered = logs.filter((l) => {
+        if (filterDate && l.date !== filterDate) return false;
+        if (filterBranch !== 'ALL' && l.branchId !== filterBranch) return false;
+        return true;
+      });
+
+      const container = document.getElementById('owner-logs-container');
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="bg-white p-6 rounded-3xl border border-slate-200 text-center text-xs text-slate-500">No shift logs found for selected filters.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered
+        .map((l) => {
+          return `
+            <div class="bg-white p-3.5 rounded-3xl border border-slate-200 shadow-2xs flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                ${
+                  l.punchInSelfie
+                    ? `<img src="${l.punchInSelfie}" onclick="openPhotoModal('${escapeAttr(l.staffName)}', '${escapeAttr(l.branchName)} • ${l.date} (In: ${l.punchInTime})', '${l.punchInSelfie}')" class="w-12 h-12 rounded-2xl object-cover border border-slate-200 cursor-pointer shrink-0" />`
+                    : `<div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0"><i data-lucide="camera-off" class="w-5 h-5"></i></div>`
+                }
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-extrabold text-slate-900 truncate">${escapeHtml(l.staffName)}</span>
+                    <span class="text-[10px] font-mono text-slate-400">${l.staffId}</span>
+                  </div>
+                  <div class="text-[11px] font-bold text-indigo-700 truncate">${escapeHtml(l.branchName)}</div>
+                  <div class="text-[11px] font-semibold text-slate-700 mt-0.5">
+                    In: ${l.punchInTime} &bull; Out: ${l.punchOutTime || '<span class="text-emerald-600 font-extrabold">On Duty</span>'}
+                  </div>
+                </div>
+              </div>
+              <div class="text-right shrink-0 space-y-1">
+                <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  l.isLate ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                }">${l.isLate ? 'Late In' : 'Verified'}</span>
+                <div class="text-[10px] text-slate-400 font-semibold">${l.date} &bull; ${l.distanceMeters}m</div>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+      lucide.createIcons();
+    };
+
+    window.resetOwnerLogFilters = () => {
+      document.getElementById('own-filter-date').value = '';
+      document.getElementById('own-filter-branch').value = 'ALL';
+      renderOwnerLogs();
+    };
+
+    window.exportOwnerLogsCSV = () => {
+      if (logs.length === 0) {
+        showToast('No attendance logs to export.', 'amber');
+        return;
+      }
+      const headers = ['Date', 'Staff ID', 'Staff Name', 'Outlet', 'Punch In', 'Punch Out', 'Distance (m)', 'Late'];
+      const rows = logs.map((l) => [
+        l.date,
+        l.staffId,
+        `"${l.staffName}"`,
+        `"${l.branchName}"`,
+        l.punchInTime,
+        l.punchOutTime || 'Active',
+        l.distanceMeters,
+        l.isLate ? 'Yes' : 'No'
+      ]);
+      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PhoneZone_MultiShop_Logs_${getTodayStr()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('CSV exported!', 'emerald');
+    };
+
+    // Owner Payroll & Itemized Advance (+ / -) Ledger
+    window.renderOwnerPayroll = () => {
+      const staffSelect = document.getElementById('ledger-staff-select');
+      const prevStaff = staffSelect.value;
+      staffSelect.innerHTML = staffList
+        .map((s) => `<option value="${s.id}">${escapeHtml(s.name)} (${s.id})</option>`)
+        .join('');
+      if (prevStaff && staffList.some((s) => s.id === prevStaff)) staffSelect.value = prevStaff;
+
+      const monthStr = document.getElementById('own-payroll-month').value || getCurrentMonthStr();
+      const container = document.getElementById('owner-payroll-list');
+
+      container.innerHTML = staffList
+        .map((member) => {
+          const pay = calculateStaffMonthlyPayroll(member, monthStr);
+          const isNeg = pay.netBalance < 0;
+          const formattedNet = `${pay.netBalance >= 0 ? '+' : '-'}₹${Math.abs(pay.netBalance).toLocaleString('en-IN')}`;
+
+          return `
+            <div class="bg-white rounded-3xl border border-slate-200 p-4 shadow-2xs space-y-3">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <h4 class="text-sm font-extrabold text-slate-900">${escapeHtml(member.name)}</h4>
+                    <span class="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">${member.id}</span>
+                  </div>
+                  <p class="text-[11px] text-slate-500">Base: ₹${member.monthlySalary.toLocaleString('en-IN')}/mo &bull; ${pay.earnedDays} Earned Days</p>
+                </div>
+                <button onclick="togglePayrollPaidStatus('${monthStr}', '${member.id}')" class="px-3 py-1 rounded-full text-[11px] font-extrabold transition ${
+                  pay.isPaid ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }">
+                  ${pay.isPaid ? '✓ Settled' : 'Mark Settled'}
+                </button>
+              </div>
+
+              <!-- Earned (+) vs Bonus (+) vs Advance (-) Summary Strip -->
+              <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl text-center text-[11px]">
+                <div>
+                  <div class="text-slate-400 font-semibold">Earned (+)</div>
+                  <div class="font-extrabold text-slate-800">+₹${pay.earnedBasePay.toLocaleString('en-IN')}</div>
+                </div>
+                <div>
+                  <div class="text-emerald-600 font-semibold">Bonus (+)</div>
+                  <div class="font-extrabold text-emerald-700">+₹${pay.totalBonus.toLocaleString('en-IN')}</div>
+                </div>
+                <div>
+                  <div class="text-rose-600 font-semibold">Advance (-)</div>
+                  <div class="font-extrabold text-rose-700">-₹${pay.totalAdvance.toLocaleString('en-IN')}</div>
+                </div>
+              </div>
+
+              <!-- Itemized Advance / Bonus Entries List for this Staff -->
+              <div class="space-y-1.5">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Advance &amp; Bonus Entries (${pay.memberLedger.length})
+                </div>
+                ${
+                  pay.memberLedger.length === 0
+                    ? `<div class="text-[11px] text-slate-400 italic py-1">No advance or bonus entries this month.</div>`
+                    : pay.memberLedger
+                        .map((e) => {
+                          const isBonus = e.type === 'BONUS';
+                          return `
+                            <div class="flex items-center justify-between text-xs px-3 py-2 rounded-xl border ${
+                              isBonus ? 'bg-emerald-50/60 border-emerald-200/70' : 'bg-rose-50/60 border-rose-200/70'
+                            }">
+                              <div class="min-w-0 pr-2">
+                                <span class="font-bold text-slate-800">${escapeHtml(e.note)}</span>
+                                <span class="text-[10px] text-slate-500 ml-1">(${e.date})</span>
+                              </div>
+                              <div class="flex items-center gap-2 shrink-0">
+                                <span class="font-extrabold ${isBonus ? 'text-emerald-700' : 'text-rose-700'}">
+                                  ${isBonus ? '+' : '-'}₹${Number(e.amount).toLocaleString('en-IN')}
+                                </span>
+                                <button onclick="deleteLedgerEntry('${e.id}')" class="text-slate-400 hover:text-rose-600" title="Remove Entry">
+                                  <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                                </button>
+                              </div>
+                            </div>
+                          `;
+                        })
+                        .join('')
+                }
+              </div>
+
+              <!-- Final Signed Net Balance (+ or -) -->
+              <div class="pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                <div>
+                  <span class="text-xs font-bold text-slate-500">Net Balance:</span>
+                  <span class="block text-[10px] font-semibold ${isNeg ? 'text-rose-600' : 'text-emerald-600'}">
+                    ${isNeg ? 'Extra Advance Taken (-)' : 'Payable to Staff (+)'}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-lg font-extrabold ${isNeg ? 'text-rose-600' : 'text-emerald-700'}">${formattedNet}</span>
+                  <button onclick="copySalarySlipSummary('${monthStr}', '${member.id}')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700" title="Copy Full Salary & Advance Statement">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+      lucide.createIcons();
+    };
+
+    window.submitLedgerEntry = async (e) => {
+      e.preventDefault();
+      const staffId = document.getElementById('ledger-staff-select').value;
+      const type = document.getElementById('ledger-type-select').value; // 'ADVANCE' or 'BONUS'
+      const amount = Math.max(1, parseInt(document.getElementById('ledger-amount-input').value, 10));
+      const date = document.getElementById('ledger-date-input').value || getTodayStr();
+      const note = document.getElementById('ledger-note-input').value.trim();
+      const month = date.slice(0, 7);
+
+      const entry = {
+        id: `LED_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        staffId,
+        month,
+        date,
+        type,
+        amount,
+        note,
+        createdAt: Date.now()
+      };
+
+      await saveLedgerEntryRecord(entry);
+      document.getElementById('ledger-amount-input').value = '';
+      document.getElementById('ledger-note-input').value = '';
+      document.getElementById('own-payroll-month').value = month;
+      renderOwnerPayroll();
+      showToast(`${type === 'BONUS' ? '+' : '-'}₹${amount} recorded in staff ledger!`, 'emerald');
+    };
+
+    window.deleteLedgerEntry = async (entryId) => {
+      await deleteLedgerEntryRecord(entryId);
+      renderOwnerPayroll();
+      showToast('Ledger entry removed.', 'slate');
+    };
+
+    window.togglePayrollPaidStatus = async (monthStr, staffId) => {
+      const key = `${monthStr}_${staffId}`;
+      const next = !payrollPaidMap[key]?.paid;
+      await savePayrollPaidRecord(key, { paid: next });
+      renderOwnerPayroll();
+      showToast(next ? 'Marked as Settled / Paid.' : 'Marked as Unsettled.', 'indigo');
+    };
+
+    window.copySalarySlipSummary = (monthStr, staffId) => {
+      const member = staffList.find((s) => s.id === staffId);
+      const pay = calculateStaffMonthlyPayroll(member, monthStr);
+      const formattedNet = `${pay.netBalance >= 0 ? '+' : '-'}₹${Math.abs(pay.netBalance)}`;
+      const entriesText =
+        pay.memberLedger.length === 0
+          ? 'None'
+          : pay.memberLedger
+              .map((e) => `  ${e.date}: ${e.type === 'BONUS' ? '+' : '-'}₹${e.amount} (${e.note})`)
+              .join('\n');
+
+      const summary = `PHONE ZONE SALARY & ADVANCE STATEMENT (${monthStr})
+Staff: ${member.name} (${member.id})
+Base Salary: ₹${member.monthlySalary}
+Worked: ${pay.fullDays} Full, ${pay.halfDays} Half | Late: ${pay.lateCount}
+Earned Salary (+): +₹${pay.earnedBasePay}
+Total Bonus (+): +₹${pay.totalBonus}
+Total Advances (-): -₹${pay.totalAdvance}
+Ledger Details:
+${entriesText}
+NET BALANCE: ${formattedNet}`;
+
+      const ta = document.createElement('textarea');
+      ta.value = summary;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Full salary & advance statement copied!', 'emerald');
+    };
+
+    // Owner Staff & Single-Phone Device Lock Manager
+    window.renderOwnerStaffManager = () => {
+      const brSelect = document.getElementById('own-staff-branch');
+      brSelect.innerHTML = branches
+        .map((b) => `<option value="${b.id}">${escapeHtml(b.name)}</option>`)
+        .join('');
+
+      const container = document.getElementById('owner-staff-list');
+      container.innerHTML = staffList
+        .map((s) => {
+          const branch = branches.find((b) => b.id === s.branchId);
+          const isLocked = Boolean(s.boundDeviceId);
+          return `
+            <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-2xs space-y-2.5">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <h4 class="text-sm font-extrabold text-slate-900">${escapeHtml(s.name)}</h4>
+                    <span class="text-[10px] font-mono bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.5 rounded">${s.id}</span>
+                  </div>
+                  <p class="text-[11px] text-slate-500">
+                    PIN: <span class="font-bold text-slate-800">${s.pin}</span> &bull; ₹${s.monthlySalary.toLocaleString('en-IN')}/mo &bull; Home: ${branch ? escapeHtml(branch.name) : ''}
+                  </p>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button onclick="editStaffMember('${s.id}')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700" title="Edit Staff">
+                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button onclick="confirmDeleteStaff('${s.id}')" class="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600" title="Delete Staff">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 text-[11px]">
+                  <i data-lucide="${isLocked ? 'lock' : 'unlock'}" class="w-3.5 h-3.5 ${isLocked ? 'text-emerald-600' : 'text-slate-400'}"></i>
+                  <span class="font-bold ${isLocked ? 'text-emerald-700' : 'text-slate-500'}">
+                    ${isLocked ? `Locked to ${s.boundDeviceId}` : 'Unbound (Any Phone Can Login)'}
+                  </span>
+                </div>
+                ${
+                  isLocked
+                    ? `<button onclick="resetStaffDeviceLock('${s.id}')" class="px-2.5 py-1 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-[10px] font-extrabold">Reset Phone Lock</button>`
+                    : ''
+                }
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+      lucide.createIcons();
+    };
+
+    window.saveStaffProfile = async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('own-staff-edit-mode').value;
+      const id = document.getElementById('own-staff-id').value.trim().toUpperCase();
+      const pin = document.getElementById('own-staff-pin').value.trim();
+      const name = document.getElementById('own-staff-name').value.trim();
+      const branchId = document.getElementById('own-staff-branch').value;
+      const monthlySalary = parseInt(document.getElementById('own-staff-salary').value, 10);
+      const shiftStart = document.getElementById('own-staff-shift').value || '10:00';
+
+      if (!editId && staffList.some((s) => s.id === id)) {
+        showToast(`Staff ID ${id} already exists.`, 'rose');
+        return;
+      }
+
+      const existing = staffList.find((s) => s.id === (editId || id));
+      const record = {
+        id,
+        name,
+        pin,
+        branchId,
+        monthlySalary,
+        shiftStart,
+        boundDeviceId: existing ? existing.boundDeviceId : null
+      };
+
+      await saveStaffRecord(record);
+      resetOwnerStaffForm();
+      renderOwnerStaffManager();
+      showToast(`Saved staff account ${name} (${id}).`, 'emerald');
+    };
+
+    window.editStaffMember = (id) => {
+      const s = staffList.find((item) => item.id === id);
+      if (!s) return;
+      document.getElementById('own-staff-form-title').textContent = `Edit ${s.name}`;
+      document.getElementById('own-staff-cancel').classList.remove('hidden');
+      document.getElementById('own-staff-edit-mode').value = s.id;
+      document.getElementById('own-staff-id').value = s.id;
+      document.getElementById('own-staff-id').readOnly = true;
+      document.getElementById('own-staff-pin').value = s.pin;
+      document.getElementById('own-staff-name').value = s.name;
+      document.getElementById('own-staff-branch').value = s.branchId;
+      document.getElementById('own-staff-salary').value = s.monthlySalary;
+      document.getElementById('own-staff-shift').value = s.shiftStart || '10:00';
+      document.getElementById('owner-staff-form').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.resetOwnerStaffForm = () => {
+      document.getElementById('own-staff-form-title').textContent = 'Add New Staff Member';
+      document.getElementById('own-staff-cancel').classList.add('hidden');
+      document.getElementById('own-staff-edit-mode').value = '';
+      document.getElementById('own-staff-id').readOnly = false;
+      document.getElementById('owner-staff-form').reset();
+      document.getElementById('own-staff-shift').value = '10:00';
+    };
+
+    window.resetStaffDeviceLock = async (id) => {
+      const s = staffList.find((item) => item.id === id);
+      if (!s) return;
+      s.boundDeviceId = null;
+      await saveStaffRecord(s);
+      renderOwnerStaffManager();
+      showToast(`Phone lock cleared for ${s.name}.`, 'emerald');
+    };
+
+    window.confirmDeleteStaff = (id) => {
+      if (staffList.length <= 1) {
+        showToast('At least one staff member must remain.', 'amber');
+        return;
+      }
+      openConfirm('Delete Staff Account?', `Remove ${id} from Phone Zone?`, async () => {
+        await deleteStaffRecord(id);
+        renderOwnerStaffManager();
+        showToast('Staff member deleted.', 'slate');
+      });
+    };
+
+    // Owner Branch Geo-Fence Editor + Add New Shop
+    let isAddingNewBranch = false;
+
+    window.renderOwnerBranchEditor = () => {
+      const select = document.getElementById('own-branch-select');
+      const prev = select.value;
+      select.innerHTML = branches
+        .map((b) => `<option value="${b.id}">${escapeHtml(b.name)}</option>`)
+        .join('');
+      if (!isAddingNewBranch) {
+        if (prev && branches.some((b) => b.id === prev)) select.value = prev;
+        loadBranchIntoEditor();
+      }
+    };
+
+    window.prepareNewBranch = () => {
+      isAddingNewBranch = true;
+      document.getElementById('own-branch-name').value = '';
+      document.getElementById('own-branch-lat').value = '';
+      document.getElementById('own-branch-lng').value = '';
+      document.getElementById('own-branch-radius').value = '75';
+      showToast('Enter new shop name & capture GPS, then tap Save.', 'indigo');
+    };
+
+    window.loadBranchIntoEditor = () => {
+      isAddingNewBranch = false;
+      const id = document.getElementById('own-branch-select').value;
+      const br = branches.find((b) => b.id === id);
+      if (!br) return;
+      document.getElementById('own-branch-name').value = br.name;
+      document.getElementById('own-branch-lat').value = br.lat;
+      document.getElementById('own-branch-lng').value = br.lng;
+      document.getElementById('own-branch-radius').value = br.radius;
+    };
+
+    window.captureCurrentGPSForBranch = () => {
+      if (!('geolocation' in navigator)) {
+        showToast('GPS not supported in this browser.', 'rose');
+        return;
+      }
+      showToast('Reading shop GPS coordinates...', 'indigo');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          document.getElementById('own-branch-lat').value = pos.coords.latitude.toFixed(6);
+          document.getElementById('own-branch-lng').value = pos.coords.longitude.toFixed(6);
+          showToast('Current GPS coordinates filled!', 'emerald');
+        },
+        (err) => showToast(`GPS Error: ${err.message}`, 'rose'),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    };
+
+    window.saveBranchGeoFence = async () => {
+      const id = isAddingNewBranch
+        ? `br-${Date.now().toString(36)}`
+        : document.getElementById('own-branch-select').value;
+      const name = document.getElementById('own-branch-name').value.trim();
+      const lat = parseFloat(document.getElementById('own-branch-lat').value);
+      const lng = parseFloat(document.getElementById('own-branch-lng').value);
+      const radius = parseInt(document.getElementById('own-branch-radius').value, 10);
+
+      if (!name || isNaN(lat) || isNaN(lng) || isNaN(radius)) {
+        showToast('Enter valid outlet name, coordinates, and radius.', 'rose');
+        return;
+      }
+
+      isAddingNewBranch = false;
+      await saveBranchRecord({ id, name, lat, lng, radius });
+      renderOwnerBranchEditor();
+      document.getElementById('own-branch-select').value = id;
+      showToast(`Saved ${name} geo-fence!`, 'emerald');
+    };
+
+    window.updateOwnerMasterPIN = () => {
+      const newPin = document.getElementById('own-new-master-pin').value.trim();
+      if (newPin.length < 4) {
+        showToast('Master PIN must be 4–6 digits.', 'amber');
+        return;
+      }
+      ownerMasterPin = newPin;
+      localStorage.setItem(KEYS.OWNER_PIN, ownerMasterPin);
+      document.getElementById('own-new-master-pin').value = '';
+      showToast('Owner Master PIN updated!', 'emerald');
+    };
+
+    window.confirmResetAllDemoData = () => {
+      openConfirm('Reset Demo Data?', 'Restore default outlets, staff accounts, multi-shop shifts, and advance ledger?', () => {
+        localStorage.removeItem(KEYS.BRANCHES);
+        localStorage.removeItem(KEYS.STAFF);
+        localStorage.removeItem(KEYS.LOGS);
+        localStorage.removeItem(KEYS.LEDGER);
+        localStorage.removeItem(KEYS.PAID_STATUS);
+        loadLocalState();
+        refreshActiveViews();
+        showToast('Demo data reset to defaults.', 'indigo');
+      });
+    };
+
+    // -----------------------------------------------------------------------
+    // 9. SHARED UI HELPERS & LIVE CLOCK
+    // -----------------------------------------------------------------------
+    function refreshActiveViews() {
+      if (!session) return;
+      if (session.role === 'staff') {
+        evaluateStaffPunchReadiness();
+        renderStaffAttendanceView();
+        renderStaffSalaryView();
+      } else {
+        renderOwnerLogs();
+        renderOwnerPayroll();
+        renderOwnerStaffManager();
+        renderOwnerBranchEditor();
+      }
+    }
+
+    function tickClock() {
+      const now = new Date();
+      const timeEl = document.getElementById('staff-live-clock');
+      const dateEl = document.getElementById('staff-live-date');
+      if (timeEl) {
+        timeEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+      if (dateEl) {
+        dateEl.textContent = now.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+      }
+    }
+
+    function showToast(msg, tone = 'slate') {
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      const styles = {
+        emerald: 'bg-emerald-900 text-white border-emerald-700',
+        rose: 'bg-rose-900 text-white border-rose-700',
+        amber: 'bg-amber-900 text-white border-amber-700',
+        indigo: 'bg-indigo-900 text-white border-indigo-700',
+        slate: 'bg-slate-900 text-white border-slate-700'
+      };
+      el.className = `pointer-events-auto rounded-2xl border px-4 py-3 text-xs font-bold shadow-xl transition-all duration-300 ${styles[tone] || styles.slate}`;
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => el.remove(), 300);
+      }, 3400);
+    }
+
+    function openConfirm(title, message, onOk) {
+      const modal = document.getElementById('confirm-modal');
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-message').textContent = message;
+      const close = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      };
+      document.getElementById('confirm-ok').onclick = () => {
+        close();
+        onOk();
+      };
+      document.getElementById('confirm-cancel').onclick = close;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    window.openPhotoModal = (title, sub, src) => {
+      document.getElementById('photo-modal-title').textContent = title;
+      document.getElementById('photo-modal-sub').textContent = sub;
+      document.getElementById('photo-modal-img').src = src;
+      const modal = document.getElementById('photo-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    };
+
+    window.closePhotoModal = () => {
+      const modal = document.getElementById('photo-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function escapeAttr(str) {
+      return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // Boot App
+    setupPWAManifest();
+    loadLocalState();
+    tickClock();
+    setInterval(tickClock, 1000);
+    lucide.createIcons();
+
+    initFirebaseFromSavedConfig().then(() => {
+      const savedSession = localStorage.getItem(KEYS.SESSION);
+      if (savedSession) {
+        try {
+          session = JSON.parse(savedSession);
+          enterAuthenticatedScreen();
+        } catch (e) {
+          localStorage.removeItem(KEYS.SESSION);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
